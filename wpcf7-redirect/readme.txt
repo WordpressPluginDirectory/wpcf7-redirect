@@ -1,9 +1,9 @@
 === Redirection for Contact Form 7 ===
 Tags: CF7 redirect, CF7 thank you page, redirect cf7, redirect CF7, CF7 success page, cf7 redirect, registration form, mailchimp, login form, conditional redirect, cms integration, conversions, save leads, paypal
-Contributors: yuvalsabar, regevlio
+Contributors: codeinwp, themeisle, yuvalsabar, regevlio
 Requires at least: 5.2.0
-Tested up to: 6.4
-Stable tag: 3.1.2
+Tested up to: 6.5
+Stable tag: 3.1.5
 License: GPLv3 or later
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
@@ -93,6 +93,17 @@ No. One of the reasons we developed this plugin, is because on_send_ok is now de
 5. Extensions tab
 
 == Changelog ==
+
+##### Version 3.1.5 (2024-06-04)
+
+- Internal updates
+
+##### Version 3.1.4 (2024-06-04)
+
+- Ownership change to Themeisle
+
+= 3.1.3 =
+* Fix honeypot breaks validation messages
 
 = 3.1.2 =
 * Conditional logic support fixed

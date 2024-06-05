@@ -1,13 +1,13 @@
 <?php
 /**
  * Plugin Name:  Redirection for Contact Form 7
- * Description:  The ultimate add-on for Contact Form 7 - redirect to any page after submission, fire scripts, save submissions in database, and much more options to make Contact Form 7 poweful than ever.
- * Version:      3.1.2
- * Plugin URI:   https://redirection-for-cf7.com
- * Author:       Qube One Ltd.
+ * Description:  The ultimate add-on for Contact Form 7 - redirect to any page after submission, fire scripts, save submissions in database, and much more options to make Contact Form 7 powerful than ever.
+ * Version:      3.1.5
+ * Author:       Themeisle
+ * Author URI:   http://themeisle.com
  * License:      GPLv3 or later
  * License URI:  https://www.gnu.org/licenses/gpl-3.0.html
- * Contributors: querysolutions, yuvalsabar, regevlio
+ * Contributors: codeinwp, themeisle, yuvalsabar, regevlio
  * Requires at least: 5.1
  *
  * Text Domain: wpcf7-redirect
@@ -15,7 +15,7 @@
  *
  * @package Redirection for Contact Form 7
  * @category Contact Form 7 Add-on
- * @author Qube One Ltd.
+ * @author Themeisle
  */
 
 defined( 'ABSPATH' ) || exit;
