@@ -59,18 +59,10 @@ $addons_url = admin_url( wpcf7_get_freemius_addons_path() );
 
 			<?php foreach ( wpcf7_get_extensions() as $extension ) : ?>
 				<?php if ( ! isset( $extension['active'] ) || ! $extension['active'] ) : ?>
-					<?php
-					$fs_blog_id   = ( is_multisite() && ! is_network_admin() ) ?
-						get_current_blog_id() :
-						0;
-					$purchase_url = esc_url(
-						network_admin_url(
-							'plugin-install.php?fs_allow_updater_and_dialog=true' . ( ! empty( $fs_blog_id ) ? '&fs_blog_id=' . $fs_blog_id : '' ) . '&tab=plugin-information&parent_plugin_id=' . wpcf7_freemius_get_id() . '&plugin=' . $extension['name'] .
-							'&TB_iframe=true&width=850&height=650'
-						)
-					)
-					?>
-					<option value="<?php echo $purchase_url; ?>" data-action="purchase">
+                    <?php
+                    $purchase_url = tsdk_utmify( wpcf7_redirect_upgrade_url(), 'wpcf7r-addon', 'add_actions' )
+                    ?>
+                    <option value="<?php echo $purchase_url; ?>" data-action="purchase">
 						<?php echo $extension['title']; ?> (<?php _e( 'Purchase', 'wpcf7-redirect' ); ?>)
 					</option>
 				<?php endif; ?>

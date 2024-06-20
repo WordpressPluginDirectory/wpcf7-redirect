@@ -3,7 +3,7 @@ Tags: CF7 redirect, CF7 thank you page, redirect cf7, redirect CF7, CF7 success 
 Contributors: codeinwp, themeisle, yuvalsabar, regevlio
 Requires at least: 5.2.0
 Tested up to: 6.5
-Stable tag: 3.1.5
+Stable tag: 3.1.6
 License: GPLv3 or later
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
@@ -58,7 +58,7 @@ Simply go to your form settings, choose the "Redirect Settings" tab and set the 
 
 > Note: some features are availible only as an extension. Which means you need an extension to unlock those features.
 
-More info and documentation on [https://redirection-for-cf7.com](https://redirection-for-cf7.com)
+More info and documentation on [https://docs.themeisle.com/collection/2014-redirection-for-contact-form-7](https://docs.themeisle.com/collection/2014-redirection-for-contact-form-7)
 
 == Installation ==
 
@@ -93,6 +93,14 @@ No. One of the reasons we developed this plugin, is because on_send_ok is now de
 5. Extensions tab
 
 == Changelog ==
+
+#####   Version 3.1.6 (2024-06-20)
+
+- Update internal dependencies
+- Improve compatibility for Add-ons
+
+
+
 
 ##### Version 3.1.5 (2024-06-04)
 

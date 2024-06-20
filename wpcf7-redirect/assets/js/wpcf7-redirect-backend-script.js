@@ -101,6 +101,7 @@ var wpcf7_redirect_admin;
 			this.api_test_button_selector = '.wpcf7-redirect-test_button-fields';
 			this.toggler_handler_selector = '.actions-list [data-toggle] input';
 			this.select_toggler_selector = '[data-toggler-name]';
+			this.select_action_selector = '[name="new-action-selector"]';
 			this.mailchimp_get_lists = '.wpcf7-redirect-get_mailchimp_lists-fields';
 			this.mailchimp_create_list = '.wpcf7-redirect-create_list-fields';
 			this.mailchimp_list_selector = '.field-wrap-mailchimp_list_id select';
@@ -278,7 +279,7 @@ var wpcf7_redirect_admin;
 		 * @return {[type]} [description]
 		 */
 		this.register_action_hooks = function () {
-			
+
 			//add and rule
 			$(document.body).on('click', this.add_and_selector, this.add_and_row.bind(this));
 			//remove rule
@@ -347,11 +348,13 @@ var wpcf7_redirect_admin;
 			$(document.body).on('click', this.dupicate_action_selector, this.duplicate_action.bind(this));
 			//close general admin popups
 			$(document.body).on('click' , this.close_popup_button_selector, this.close_popup.bind(this));
+			//change selected action
+			$(document.body).on('change', this.select_action_selector, this.select_action.bind(this));
 		}
 
 		/**
 		 * close open popups
-		 * @param {*} e 
+		 * @param {*} e
 		 */
 		this.close_popup = function(e){
 			$('.wpcfr-popup-wrap').remove();
@@ -450,7 +453,7 @@ var wpcf7_redirect_admin;
 
 		/**
 		 * Handle toggling display view according to select field.
-		 * @param {*} e 
+		 * @param {*} e
 		 */
 		this.select_toggler = function (e) {
 			var $select = $(e.currentTarget);
@@ -463,6 +466,20 @@ var wpcf7_redirect_admin;
 			if (selected_value) {
 				$('.' + toggler_name + '_' + selected_value).show();
 			}
+		}
+
+		/**
+		 * Handle action select change.
+		 * @param {*} e
+		 */
+		this.select_action = function (e) {
+			var $select = $(e.currentTarget);
+			var action = $select.find(':selected').attr('data-action');
+			if ('purchase' === action) {
+				$('a.wpcf7-add-new-action').text( 'Get Addon' );
+				return;
+			}
+			$('a.wpcf7-add-new-action').text( 'Add Action' );
 		}
 
 		this.data_toggler = function (e) {
@@ -573,7 +590,9 @@ var wpcf7_redirect_admin;
 				return false;
 			}
 			if ('purchase' === $action_selector.find(':selected').data('action')) {
-				tb_show('purchase',action_type);
+				e.preventDefault();
+				var url = action_type;
+				window.open(url, '_blank');
 			} else {
 				this.show_loader($clicked_button.parents('.actions-list'));
 				params = {

@@ -4,7 +4,7 @@
  *
  * @package Redirection for Contact Form 7
  * @category Contact Form 7 Add-on
- * @author Query Solutions
+ * @author Themeisle
  * @version 0.1.0
  */
 
@@ -173,7 +173,7 @@ function wpcf7_redirect_get_all_extensions_list() {
 			'filename'    => 'class-wpcf7r-action-twilio.php',
 			'title'       => __( 'Send sms with twlio', 'wpcf7-redirect' ),
 			'description' => __( 'Send sms to yourself or your users with twlio.', 'wpcf7-redirect' ),
-			'icon'        => WPCF7_PRO_REDIRECT_BUILD_PATH . 'images/twilio-icon.png',
+			'icon'        => WPCF7_PRO_REDIRECT_BUILD_PATH . 'images/twilio.png',
 			'classname'   => 'WPCF7R_Action_TwilioSms',
 		),
 		'wpcf7r-slack'                => array(
@@ -195,6 +195,14 @@ function wpcf7_redirect_get_all_extensions_list() {
 	);
 
 	return $defaults;
+}
+
+/**
+ * Return the URL for the upgrade page.
+ * @return string
+ */
+function wpcf7_redirect_upgrade_url() {
+    return 'https://themeisle.com/plugins/wpcf7-redirect/upgrade';
 }
 
 /**
@@ -413,6 +421,7 @@ function wpcf7_remove_contact_form_7_to_api() {
  * Get CF7 version
  */
 function wpcf7_get_cf7_ver() {
+    return defined( 'WPCF7_VERSION' ) ? WPCF7_VERSION : false;
 	if ( is_plugin_active( 'contact-form-7/wp-contact-form-7.php' ) ) {
 		$wpcf7_path = WPCF7_PRO_REDIRECT_PLUGINS_PATH . 'contact-form-7/wp-contact-form-7.php';
 		$wpcf7_data = get_plugin_data( $wpcf7_path, false, false );
