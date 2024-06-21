@@ -1,12 +1,5 @@
 <?php
 
-if ( ! function_exists( 'fs_dynamic_init' ) ) {
-	function fs_dynamic_init( $array ) {
-		add_filter( 'wpcf7r_legacy_used', '__return_true' );
-		return $array;
-	}
-}
-
 /**
  * Get the path for the admin page
  *
@@ -67,29 +60,10 @@ function wpcf7_freemius_get_id() {
  * @return void
  */
 function wpcf7r_load_freemius_addon( $name ) {
-	//return;
 	$callback    = $name;
 	$loaded_hook = $name . '_loaded';
 
-	if ( wpcf7r_is_parent_active_and_loaded() ) {
-		// If parent already included, init add-on.
-		$callback();
-
+	add_action( 'plugins_loaded', function () use ( $callback, $loaded_hook ) {
 		do_action( $loaded_hook );
-	} elseif ( wpcf7r_is_parent_active() ) {
-		// Init add-on only after the parent is loaded.
-		add_action(
-			'wpcf7_fs_loaded',
-			function () use ( $callback ) {
-				$callback();
-
-				do_action( $loaded_hook );
-			}
-		);
-	} else {
-		// Even though the parent is not activated, execute add-on for activation / uninstall hooks.
-		$callback();
-
-		do_action( $loaded_hook );
-	}
+	} );
 }

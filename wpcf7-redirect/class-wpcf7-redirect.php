@@ -231,12 +231,25 @@ class Wpcf7_Redirect {
 			'wpcf7r-twilio',
 		];
 
+        $display_upgrade = true;
+
+        $plugins = get_plugins();
+        $plugins = array_keys( $plugins );
+
+        // if an addon is present default to not display the upgrade link.
+        foreach ( $available_addons as $addon ) {
+            if ( in_array( $addon . '/init.php', $plugins, true ) ) {
+                $display_upgrade = false;
+                break;
+            }
+        }
+
 		foreach ( $available_addons as $addon ) {
 			if ( 'valid' !== tsdk_lstatus( WP_PLUGIN_DIR . '/' . $addon. '/init.php' ) ) {
 				return true;
 			}
 		}
-		return false;
+		return $display_upgrade;
 	}
 
 	/**
