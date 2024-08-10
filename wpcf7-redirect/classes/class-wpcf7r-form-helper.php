@@ -88,6 +88,7 @@ class WPCF7r_Form_Helper {
 		add_action( 'wp_enqueue_scripts', array( $this, 'front_end_scripts' ) );
 		// add contact form scripts for admin panel.
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_backend' ) );
+		add_action( 'wpcf7_contact_form', array( WPCF7r_Survey::get_instance(), 'init' ) );
 	}
 
 	/**

@@ -127,7 +127,7 @@ class WPCF7r_Settings {
 		$capability = 'manage_options';
 		$callback   = array( $this, 'plugin_settings_page_content' );
 
-		add_submenu_page(
+		$hook = add_submenu_page(
 			'wpcf7',
 			$page_title,
 			$page_title,
@@ -135,6 +135,7 @@ class WPCF7r_Settings {
 			$this->page_slug,
 			$callback
 		);
+		add_action( "load-$hook", array( WPCF7r_Survey::get_instance(), 'init' ) );
 	}
 
 	/**

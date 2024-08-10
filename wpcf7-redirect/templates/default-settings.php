@@ -63,7 +63,7 @@ $addons_url = admin_url( wpcf7_get_freemius_addons_path() );
                     $purchase_url = tsdk_utmify( wpcf7_redirect_upgrade_url(), 'wpcf7r-addon', 'add_actions' )
                     ?>
                     <option value="<?php echo $purchase_url; ?>" data-action="purchase">
-						<?php echo $extension['title']; ?> (<?php _e( 'Purchase', 'wpcf7-redirect' ); ?>)
+						<?php echo $extension['title']; ?> (<?php _e( 'Premium', 'wpcf7-redirect' ); ?>)
 					</option>
 				<?php endif; ?>
 			<?php endforeach; ?>

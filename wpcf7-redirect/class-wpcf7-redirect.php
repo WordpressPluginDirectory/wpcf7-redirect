@@ -112,7 +112,7 @@ class Wpcf7_Redirect {
 		$slug	    = 'wpcf7r-addons-upsell';
 		$callback   = array( $this, 'plugin_addons_upsell_page_content' );
 
-		add_submenu_page(
+		$hook = add_submenu_page(
 			'wpcf7',
 			$page_title,
 			$page_title,
@@ -120,6 +120,8 @@ class Wpcf7_Redirect {
 			$slug,
 			$callback
 		);
+
+		add_action( "load-$hook", array( WPCF7r_Survey::get_instance(), 'init' ) );
 
         if ( ! $this->check_upgrade_available() ) {
             return;
