@@ -42,7 +42,7 @@ class WPCF7r_Survey {
 	 * @return array
 	 * @see survey.js
 	 */
-	public function get_survery_metadata() {
+	public function get_survey_metadata() {
 
 		$days_since_install = round( ( time() - get_option( 'redirection_for_contact_form_7_install', 0 ) ) / DAY_IN_SECONDS );
 		$install_category   = 0;
@@ -130,9 +130,15 @@ class WPCF7r_Survey {
 			return;
 		}
 
+		$survey_metadata = $this->get_survey_metadata();
+
 		do_action( 'themeisle_sdk_dependency_enqueue_script', 'survey' );
 		wp_enqueue_script( 'wpcf7r_survey', WPCF7_PRO_REDIRECT_ASSETS_PATH . 'js/survey.js', array( $survey_handler ), WPCF7_PRO_REDIRECT_PLUGIN_VERSION, true );
-		wp_localize_script( 'wpcf7r_survey', 'wpcf7rSurveyData', $this->get_survery_metadata() );
+		wp_localize_script( 'wpcf7r_survey', 'wpcf7rSurveyData', $survey_metadata );
+
+		if ( 0 === $survey_metadata['attributes']['plan'] ) {
+			do_action( 'themeisle_sdk_load_banner', 'rfc7r' );
+		}
 	}
 
 	/**

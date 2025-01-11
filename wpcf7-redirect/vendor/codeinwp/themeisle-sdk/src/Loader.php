@@ -138,6 +138,13 @@ final class Loader {
 				'spark_desc2'  => 'Add a top notification bar on your website to highlight the latest products, offers, or upcoming events.',
 				'spark_desc3'  => 'Enable an advanced review section, enlarging the basic review options with lots of capabilities.',
 			],
+
+			'feedzy'          => [
+				'import_desc'       => 'Schedule automatic content imports from any RSS feed directly to your site. %sBuilt by %s%s',
+				'install_now'       => 'Install Now',
+				'by'                => 'by %s',
+				'editor_recommends' => '%s recommends %sFeedzy%s to display entries from any RSS feed with more advanced styling and filtering options.',
+			],
 			'optimole'        => [
 				'installOptimole' => 'Install Optimole',
 				'gotodash'        => 'Go to Optimole dashboard',
@@ -152,6 +159,18 @@ final class Loader {
 				'dismisscta' => 'Dismiss this notice.',
 				'gst'        => 'Get Started Free',
 				'message'    => 'Add URL redirects, spam protection, execute JavaScript after submissions, and more with the Redirection for CF7 free plugin.',
+			],
+			'hyve'            => [
+				'gotodash'   => 'Go to Hyve Dashboard',
+				'install'    => 'Install Hyve',
+				'dismisscta' => 'Dismiss this notice.',
+				'message'    => 'Hyve is an AI-powered chatbot that turns your WordPress content into interactive conversations, helping you efficiently handle user inquiries.',
+			],
+			'wp_full_pay'     => [
+				'gotodash'   => 'Go to WP Full Pay Settings',
+				'install'    => 'Install WP Full Pay',
+				'dismisscta' => 'Dismiss this notice.',
+				'message'    => 'Enhance your donation page with WP Full Pay—create custom Stripe forms for one-time and recurring donations, manage transactions easily, and boost support with a seamless setup.',
 			],
 		],
 		'welcome'          => [

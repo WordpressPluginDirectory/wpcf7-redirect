@@ -5,11 +5,16 @@
 
 defined( 'ABSPATH' ) || exit;
 
-register_wpcf7r_actions(
-	'FireScript',
-	__( 'Fire JavaScript', 'wpcf7-redirect' ),
-	'WPCF7R_Action_FireScript',
-	2
+add_action(
+	'init',
+	function () {
+		register_wpcf7r_actions(
+			'FireScript',
+			__( 'Fire JavaScript', 'wpcf7-redirect' ),
+			'WPCF7R_Action_FireScript',
+			2
+		);
+	}
 );
 
 class WPCF7R_Action_FireScript extends WPCF7R_Action {

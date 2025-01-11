@@ -268,7 +268,7 @@ var wpcf7_redirect_admin;
 		 */
 		this.renumber_rows = function () {
 			numbering = 1;
-			$('#the_list tr .num').each(function () {
+			$('#the_list tr .num:visible').each(function () {
 				$(this).html(numbering);
 				numbering++;
 			});
@@ -660,7 +660,7 @@ var wpcf7_redirect_admin;
 			 * @return {[type]}           [description]
 			 */
 			if ('wpcf7r_add_action' === action || 'wpcf7r_duplicate_action' == action) {
-				$('[data-wrapid=' + params.rule_id + '] #the_list').append(response.action_row);
+				$('[data-wrapid=' + params.rule_id + '] #the_list:visible').append(response.action_row);
 
 				$new_action_wrap = $('[data-wrapid=' + params.rule_id + '] #the_list > tr.action-container').last();
 

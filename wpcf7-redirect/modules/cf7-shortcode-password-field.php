@@ -162,11 +162,24 @@ add_action( 'wpcf7_admin_init', 'wpcf7_add_tag_generator_password', 15, 0 );
 
 function wpcf7_add_tag_generator_password() {
 	$tag_generator = WPCF7_TagGenerator::get_instance();
-	$tag_generator->add(
-		'password',
-		__( 'password', 'wpcf7-redirect' ),
-		'wpcf7_tag_generator_password'
-	);
+	// Use the new syntax for the tag generator.
+	if ( version_compare( WPCF7_VERSION, '5.4', '>=' ) ) {
+		$tag_generator->add(
+			'password',
+			__( 'password', 'wpcf7-redirect' ),
+			'wpcf7_tag_generator_password',
+			array(
+				'version' => '2',
+			)
+		);
+	} else {
+		// Fallback for older versions.
+		$tag_generator->add(
+			'password',
+			__( 'password', 'wpcf7-redirect' ),
+			'wpcf7_tag_generator_password'
+		);
+	}
 }
 
 function wpcf7_tag_generator_password( $contact_form, $args = '' ) {

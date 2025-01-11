@@ -5,11 +5,16 @@
 
 defined( 'ABSPATH' ) || exit;
 
-register_wpcf7r_actions(
-	'SendMail',
-	__( 'Send Email', 'wpcf7-redirect' ),
-	'WPCF7R_Action_SendMail',
-	4
+add_action(
+	'init',
+	function () {
+		register_wpcf7r_actions(
+			'SendMail',
+			__( 'Send Email', 'wpcf7-redirect' ),
+			'WPCF7R_Action_SendMail',
+			4
+		);
+	}
 );
 
 class WPCF7R_Action_SendMail extends WPCF7R_Action {

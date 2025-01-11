@@ -7,11 +7,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-register_wpcf7r_actions(
-	'erasedatarequest',
-	__( 'Erase/Export Data Request', 'wpcf7-redirect' ),
-	'WPCF7R_Action_erasedata',
-	6
+add_action(
+	'init',
+	function () {
+		register_wpcf7r_actions(
+			'erasedatarequest',
+			__( 'Erase/Export Data Request', 'wpcf7-redirect' ),
+			'WPCF7R_Action_erasedata',
+			6
+		);
+	}
 );
 
 /**

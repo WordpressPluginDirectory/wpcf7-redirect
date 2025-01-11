@@ -5,7 +5,12 @@
 
 defined( 'ABSPATH' ) || exit;
 
-register_wpcf7r_actions( 'save_lead', __( 'Save Lead', 'wpcf7-redirect' ), 'WPCF7R_Action_Save_Lead', 3 );
+add_action(
+	'init',
+	function () {
+		register_wpcf7r_actions( 'save_lead', __( 'Save Lead', 'wpcf7-redirect' ), 'WPCF7R_Action_Save_Lead', 3 );
+	}
+);
 
 class WPCF7R_Action_Save_Lead extends WPCF7R_Action {
 

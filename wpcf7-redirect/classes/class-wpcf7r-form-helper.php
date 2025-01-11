@@ -72,7 +72,6 @@ class WPCF7r_Form_Helper {
 		$this->assets_css_url = WPCF7_PRO_REDIRECT_BASE_URL . 'assets/css/';
 		$this->build_js_url   = WPCF7_PRO_REDIRECT_BASE_URL . 'build/js/';
 		$this->build_css_url  = WPCF7_PRO_REDIRECT_BASE_URL . 'build/css/';
-		$this->extensions     = wpcf7_get_extensions();
 
 		$this->add_actions();
 	}
@@ -81,6 +80,7 @@ class WPCF7r_Form_Helper {
 	 * Add Actions
 	 */
 	private function add_actions() {
+		add_action( 'init', array( $this, 'extensions' ) );
 		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
 		add_action( 'wpcf7_editor_panels', array( $this, 'add_panel' ) );
 		add_action( 'wpcf7_after_save', array( $this, 'store_meta' ) );
@@ -89,6 +89,13 @@ class WPCF7r_Form_Helper {
 		// add contact form scripts for admin panel.
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_backend' ) );
 		add_action( 'wpcf7_contact_form', array( WPCF7r_Survey::get_instance(), 'init' ) );
+	}
+
+	/**
+	 * Get extensions.
+	 */
+	public function extensions() {
+		$this->extensions = wpcf7_get_extensions();
 	}
 
 	/**

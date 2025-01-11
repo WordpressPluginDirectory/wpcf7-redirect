@@ -6,11 +6,16 @@
 
 defined( 'ABSPATH' ) || exit;
 
-register_wpcf7r_actions(
-	'honeypot',
-	__( 'Honeypot', 'wpcf7-redirect' ),
-	'WPCF7R_Action_Honeypot',
-	5
+add_action(
+	'init',
+	function () {
+		register_wpcf7r_actions(
+			'honeypot',
+			__( 'Honeypot', 'wpcf7-redirect' ),
+			'WPCF7R_Action_Honeypot',
+			5
+		);
+	}
 );
 
 class WPCF7R_Action_Honeypot extends WPCF7R_Action {

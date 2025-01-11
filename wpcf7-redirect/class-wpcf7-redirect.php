@@ -183,8 +183,12 @@ class Wpcf7_Redirect {
             .wpcf7r-extensions-wrap .extension .title img {
                 width: 32px;
             }
+			.wpcf7r-banner:has(.tsdk-banner-cta) {
+				margin-bottom: 40px;
+			}
         </style>
 		<section class="wpcf7r-addons">
+			<div id="tsdk_banner" class="wpcf7r-banner"></div>
             <h1><?php _e( 'Redirection For Contact Form 7 Addons', 'wpcf7-redirect' ); ?></h1>
             <div id="wpcf7r-extensions" class="wpcf7r-extensions-wrap">
                 <?php
