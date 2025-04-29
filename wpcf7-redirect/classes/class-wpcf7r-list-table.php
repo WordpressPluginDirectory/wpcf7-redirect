@@ -5,6 +5,7 @@
  * @package wpcf7-redirect
  * @since 1.0.0
  */
+
 defined( 'ABSPATH' ) || exit;
 
 if ( class_exists( 'WP_List_Table' ) ) {

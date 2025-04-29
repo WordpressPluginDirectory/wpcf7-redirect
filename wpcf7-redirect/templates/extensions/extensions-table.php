@@ -15,7 +15,10 @@ wp_nonce_field( 'manage_cf7_redirect', '_wpcf7nonce' );
 		<?php if ( $extensions ) : ?>
 			<?php foreach ( $extensions as $extension_slug => $extension ) : ?>
 				<div class="extension">
-					<?php echo $extension->get_action_promo(); ?>
+					<?php
+					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					echo $extension->get_action_promo();
+					?>
 				</div>
 			<?php endforeach; ?>
 		<?php endif; ?>

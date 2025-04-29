@@ -15,7 +15,7 @@ do_action( 'before_extensions_settings_tab_title', $this );
 		<div class="tab-wrap">
 			<div class="wpcf7r-tab-wrap-inner">
 				<div data-tab-inner>
-					<?php include( 'extensions/extensions-table.php' ); ?>
+					<?php require 'extensions/extensions-table.php'; ?>
 				</div>
 			</div>
 		</div>

@@ -1,11 +1,27 @@
+// @ts-check
+
+import '../css/wpcf7-redirect-frontend.scss';
+
 var wpcf7_redirect;
 
 (function ($) {
+    /**
+     * Main Wpcf7_redirect class that handles Contact Form 7 submission responses
+     * @constructor
+     */
     function Wpcf7_redirect() {
+        /**
+         * Initializes the handler functions
+         */
         this.init = function () {
             this.wpcf7_redirect_mailsent_handler();
         };
 
+        /**
+         * Sets up event listeners for CF7 form submission events
+         * @fires wpcf7r-mailsent - Triggered after CF7 mail is sent
+         * @fires wpcf7r-invalid - Triggered when CF7 form validation fails
+         */
         this.wpcf7_redirect_mailsent_handler = function () {
 
             document.addEventListener('wpcf7mailsent', function (event) {
@@ -13,8 +29,8 @@ var wpcf7_redirect;
                 $(document.body).trigger('wpcf7r-mailsent', [event]);
 
                 if (typeof event.detail.apiResponse != 'undefined' && event.detail.apiResponse) {
-                    var apiResponse = event.detail.apiResponse;
-                    var actionDelay = 0;
+                    const apiResponse = event.detail.apiResponse;
+                    let actionDelay = 0;
 
                     //handle api response
                     if (typeof apiResponse.api_url_request != 'undefined' && apiResponse.api_url_request) {
@@ -36,7 +52,7 @@ var wpcf7_redirect;
 
                     //catch and handle popup action
                     if (typeof apiResponse.popup != 'undefined' && apiResponse.popup) {
-                        wpcf7_redirect.handle_popups(apiResponse.popup);
+                        wpcf7_redirect.handle_popups(apiResponse.popup, event);
                     }
 
                     //catch redirect to paypal
@@ -62,7 +78,7 @@ var wpcf7_redirect;
                 $(document.body).trigger('wpcf7r-invalid', [event]);
 
                 if (typeof event.detail.apiResponse != 'undefined' && event.detail.apiResponse) {
-                    response = event.detail.apiResponse;
+                    const response = event.detail.apiResponse;
                     if (response.invalidFields) {
                         //support for multistep by ninja
                         wpcf7_redirect.ninja_multistep_mov_to_invalid_tab(event, response);
@@ -70,8 +86,18 @@ var wpcf7_redirect;
                 }
             });
         };
-
-        this.handle_popups = function (popups) {
+       
+        /**
+         * Handles popup creation and management after form submission
+         * @param {Object[]} popups - Array of popup configuration objects
+         * @param {string} popups[].popup-template - HTML template for the popup
+         * @param {string} popups[].template-name - Class name to add to the body when popup is displayed
+         * @param {Event} event - Form submission event object
+         * @fires wpcf7r-before-open-popup - Triggered before opening the popup
+         * @fires wpcf7r-popup-appended - Triggered after the popup has been appended to the DOM
+         * @fires wpcf7r-popup-removed - Triggered after the popup has been removed from the DOM
+         */
+        this.handle_popups = function (popups, event) {
 
             $(document.body).trigger('wpcf7r-before-open-popup', [event]);
 
@@ -104,24 +130,37 @@ var wpcf7_redirect;
 
         }
 
-        this.handle_api_action = function (send_to_api_result, request) {
+        /**
+         * Handles API action results by executing JavaScript returned from the API
+         * @param {Object[]} send_to_api_result - Array of API result objects
+         * @param {string} [send_to_api_result[].result_javascript] - JavaScript code to be executed
+         */
+        this.handle_api_action = function (send_to_api_result) {
 
             $.each(send_to_api_result, function (k, v) {
+                window.rcf7_response = JSON.parse( v.api_response );
+                
                 if (!v.result_javascript) {
                     return;
                 }
-                response = typeof v.api_response != 'undefined' ? v.api_response : '';
-                request = typeof v.request != 'undefined' ? v.request : '';
                 eval(v.result_javascript);
             });
         };
 
+        /**
+         * Handles navigation to the form tab with invalid fields in Ninja multi-step forms
+         * @param {Event} event - Form submission event
+         * @param {Object} response - API response containing invalidFields information
+         * @param {Array} response.invalidFields - Array of invalid field objects
+         */
         this.ninja_multistep_mov_to_invalid_tab = function (event, response) {
 
             if ($('.fieldset-cf7mls-wrapper').length) {
-                var form = $(event.target);
-                var first_invalid_field = response.invalidFields[0];
-                var parent_step = $(first_invalid_field.into).parents('fieldset');
+                const form = $(event.target);
+                const first_invalid_field = response.invalidFields[0];
+                const parent_step = $(first_invalid_field.into).parents('fieldset');
+                const current_fs = form.find('.cf7mls_current_fs');
+                const previous_fs = parent_step;
 
                 form.find('.fieldset-cf7mls').removeClass('cf7mls_current_fs');
                 parent_step.addClass('cf7mls_current_fs').removeClass('cf7mls_back_fs');
@@ -132,18 +171,25 @@ var wpcf7_redirect;
             }
         }
 
+        /**
+         * Handles redirect actions (page redirect, new tab, or form submission)
+         * @param {Object[]} redirect - Array of redirect configuration objects
+         * @param {number} [redirect[].delay] - Delay in seconds before the redirect occurs
+         * @param {string} [redirect[].redirect_url] - URL to redirect to
+         * @param {string} [redirect[].type] - Type of redirect ('redirect' or 'new_tab')
+         * @param {string} [redirect[].form] - HTML form to submit
+         * @fires wpcf7r-handle_redirect_action - Triggered before executing redirect action
+         */
         this.handle_redirect_action = function (redirect) {
 
             $(document.body).trigger('wpcf7r-handle_redirect_action', [redirect]);
 
             $.each(redirect, function (k, v) {
-                var delay = typeof v.delay != 'undefined' && v.delay ? v.delay : '';
-
-                delay = delay * 1000;
+                const delay = (v.delay || 0) * 1000;
 
                 window.setTimeout(function (v) {
-                    var redirect_url = typeof v.redirect_url != 'undefined' && v.redirect_url ? v.redirect_url : '';
-                    var type = typeof v.type != 'undefined' && v.type ? v.type : '';
+                    const redirect_url = v.redirect_url || '';
+                    const type = v.type || '';
 
                     if (typeof v.form != 'undefined' && v.form) {
                         $('body').append(v.form);
@@ -162,6 +208,11 @@ var wpcf7_redirect;
 
         };
 
+        /**
+         * Executes JavaScript code passed from the server
+         * @param {Object} scripts - Object containing JavaScript code to execute
+         * @fires wpcf7r-handle_javascript_action - Triggered before executing JavaScript actions
+         */
         this.handle_javascript_action = function (scripts) {
 
             $(document.body).trigger('wpcf7r-handle_javascript_action', [scripts]);
@@ -172,6 +223,11 @@ var wpcf7_redirect;
 
         };
 
+        /**
+         * Decodes HTML special characters to their corresponding characters
+         * @param {string} string - The string containing HTML entities to decode
+         * @returns {string} The decoded string
+         */
         this.htmlspecialchars_decode = function (string) {
 
             var map = {

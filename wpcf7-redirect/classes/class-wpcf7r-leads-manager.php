@@ -1,12 +1,22 @@
 <?php
 /**
  * Class WPCF7R_Leads_Manager - Container class that handles leads management
+ *
+ * @package wpcf7-redirect
  */
+
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * WPCF7R_Leads_Manager Class
+ *
+ * Container class that handles leads management for Contact Form 7.
+ */
 class WPCF7R_Leads_Manager {
 	/**
 	 * Save a reference to the last lead inserted to the DB
+	 *
+	 * @var int
 	 */
 	public static $new_lead_id;
 
@@ -36,14 +46,69 @@ class WPCF7R_Leads_Manager {
 	public static function admin_init_scripts() {
 		add_filter( 'manage_wpcf7r_leads_posts_columns', array( 'WPCF7R_Leads_Manager', 'set_custom_edit_wpcf7r_leads_columns' ) );
 		add_action( 'manage_wpcf7r_leads_posts_custom_column', array( 'WPCF7R_Leads_Manager', 'custom_wpcf7r_leads_column' ), 10, 2 );
-		add_action( 'manage_posts_extra_tablenav', array( 'WPCF7R_Leads_Manager', 'display_export_button' ), 10, 2 );
+		add_action( 'pre_get_posts', array( 'WPCF7R_Leads_Manager', 'filter_posts_by_field_value' ) );
+		add_action( 'admin_enqueue_scripts', array( 'WPCF7R_Leads_Manager', 'load_admin_deps' ) );
+	}
+
+	/**
+	 * Register REST API endpoints.
+	 */
+	public static function register_endpoints() {
+		register_rest_route(
+			'wpcf7r/v1',
+			'/export',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( 'WPCF7R_Leads_Manager', 'export_entries' ),
+				'permission_callback' => function () {
+					return current_user_can( 'wpcf7_edit_contact_form' );
+				},
+			)
+		);
+	}
+
+	/**
+	 * Load the dependencies for the Entries display list.
+	 */
+	public static function load_admin_deps() {
+
+		$screen         = get_current_screen();
+		$is_leads_list  = ( $screen && 'edit' === $screen->base && self::get_post_type() === $screen->post_type );
+		$is_single_lead = ( $screen && 'post' === $screen->base && self::get_post_type() === $screen->post_type );
+
+		if ( ! $is_leads_list && ! $is_single_lead ) {
+			return;
+		}
+
+		$dependencies = ( include WPCF7_PRO_REDIRECT_PATH . '/build/assets/entries.asset.php' );
+		wp_enqueue_style( 'cf7r-entries', WPCF7_PRO_REDIRECT_BASE_URL . 'build/assets/entries.css', array(), $dependencies['version'] );
+		wp_enqueue_script( 'cf7r-entries', WPCF7_PRO_REDIRECT_BASE_URL . 'build/assets/entries.js', $dependencies['dependencies'], $dependencies['version'] );
+
+		wp_localize_script(
+			'cf7r-entries',
+			'cf7rData',
+			array(
+				'labels'    => array(
+					'export'       => __( 'Export', 'wpcf7-redirect' ),
+					'copy'         => __( 'Copy the value to clipboard', 'wpcf7-redirect' ),
+					'preview'      => __( 'Preview', 'wpcf7-redirect' ),
+					'closePreview' => __( 'Close Preview', 'wpcf7-redirect' ),
+					'loading'      => __( 'Loading', 'wpcf7-redirect' ),
+					'error'        => __( 'Error', 'wpcf7-redirect' ),
+				),
+				'endpoints' => array(
+					'export'       => 'wpcf7r/v1/export',
+					'downloadFile' => 'wpcf7r/v1/download-file',
+				),
+			),
+		);
 	}
 
 	/**
 	 * Display custom post type columns on edit list.
 	 *
-	 * @param [type] $column - the key of the column.
-	 * @param [int]  $post_id - the lead id.
+	 * @param string $column - the key of the column.
+	 * @param int    $lead_id - the lead id.
 	 * @return void
 	 */
 	public static function custom_wpcf7r_leads_column( $column, $lead_id ) {
@@ -56,11 +121,11 @@ class WPCF7R_Leads_Manager {
 		} else {
 			switch ( $column ) {
 				case 'data_preview':
-					echo __( 'Preview is not available: save lead action does not exist', 'wpcf7-redirect' );
+					echo esc_html__( 'Preview is not available: save lead action does not exist', 'wpcf7-redirect' );
 					break;
 				case 'form':
 					$form_id = get_post_meta( $lead_id, 'cf7_form', true );
-					echo WPCF7r_Form_Helper::get_cf7_link_html( $form_id );
+					echo wp_kses_post( WPCF7r_Form_Helper::get_cf7_link_html( $form_id ) );
 					break;
 			}
 		}
@@ -69,7 +134,7 @@ class WPCF7R_Leads_Manager {
 	/**
 	 * Adds an export button on the edit post list.
 	 *
-	 * @param [type] $which
+	 * @param string $which Position of the nav (top/bottom).
 	 * @return void
 	 */
 	public static function display_export_button( $which ) {
@@ -77,153 +142,222 @@ class WPCF7R_Leads_Manager {
 
 		if ( self::get_post_type() === $typenow && 'top' === $which ) {
 			?>
-			<input type="submit" name="export_leads" class="button button-primary" value="<?php _e( 'Export' ); ?>" />
+			<input type="submit" name="export_leads" class="button button-primary" value="<?php esc_html_e( 'Export', 'wpcf7-redirect' ); ?>" />
 			<?php wp_nonce_field( 'manage_cf7_redirect', 'actions-nonce' ); ?>
 			<?php
 		}
 	}
 
 	/**
-	 * Export the current filtered list.
+	 * Filter the main query loop for displaying the entries based on the saved meta key and value.
 	 *
-	 * @return void
+	 * @param \WP_Query $query The query.
 	 */
-	public static function export_current_filtered_view() {
-		if ( isset( $_GET['export_leads'] ) && current_user_can( 'wpcf7_edit_contact_form' ) ) {
-			$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( $_GET['_wpnonce'] ) : '';
+	public static function filter_posts_by_field_value( $query ) {
+		if (
+			is_admin() &&
+			$query->is_main_query() &&
+			! empty( $_GET['cf7_field_meta_key'] ) && ! empty( $_GET['cf7_field_meta_value'] )
+		) {
+			$meta_key   = sanitize_text_field( $_GET['cf7_field_meta_key'] );
+			$meta_value = sanitize_text_field( $_GET['cf7_field_meta_value'] );
 
-			wp_verify_nonce( $nonce, 'manage_cf7_redirect' );
-
-			$meta_query = array();
-
-			$args = array(
-				'post_type'      => self::get_post_type(),
-				'post_status'    => 'any',
-				'posts_per_page' => -1,
-			);
-
-			if ( isset( $_GET['cf7_form'] ) && $_GET['cf7_form'] ) {
-				$meta_query[] = array(
-					'key'   => 'cf7_form',
-					'value' => (int) $_GET['cf7_form'],
-				);
-			}
-
-			if ( isset( $_GET['m'] ) && $_GET['m'] ) {
-
-				$month = substr( $_GET['m'], 4, 2 );
-				$year  = substr( $_GET['m'], 0, 4 );
-
-				$args['date_query'] = array(
+			$query->set(
+				'meta_query',
+				array(
 					array(
-						'year'  => $year,
-						'month' => $month,
+						'key'     => $meta_key,
+						'value'   => $meta_value,
+						'compare' => 'LIKE',
 					),
-				);
-			}
-
-			if ( $meta_query ) {
-				$args['meta_query'] = $meta_query;
-			}
-
-			$arr_post = get_posts( $args );
-
-			$forms = array();
-
-			/**
-			 * Order leads by form.
-			 * Because the forms are dynamic we create diffrent headers for each form.
-			 */
-			foreach ( $arr_post as $lead ) {
-				$form_id = get_post_meta( $lead->ID, 'cf7_form', true );
-
-				$custom_fields = get_post_custom( $lead->ID );
-
-				foreach ( $custom_fields as $custom_field_key => $custom_field_value ) {
-					$value = maybe_unserialize( reset( $custom_field_value ) );
-
-					if ( '_' !== substr( $custom_field_key, 0, 1 ) && 'action ' !== substr( $custom_field_key, 0, 7 ) ) {
-						if ( ! is_array( $value ) ) {
-							$forms[ $form_id ]['leads'][ $lead->ID ][ $custom_field_key ] = $value;
-							$forms[ $form_id ]['headers'][ $custom_field_key ]            = $custom_field_key;
-						} else {
-							$forms[ $form_id ]['leads'][ $lead->ID ][ $custom_field_key ] = implode( ',', $value );
-							$forms[ $form_id ]['headers'][ $custom_field_key ]            = $custom_field_key;
-						}
-					}
-				}
-
-				$forms[ $form_id ]['leads'][ $lead->ID ]['form_name']   = get_the_title( $form_id ) ? get_the_title( $form_id ) : __( 'Form does not exist', 'wpcf7-redirect' );
-				$forms[ $form_id ]['leads'][ $lead->ID ]['form_id']     = $form_id;
-				$forms[ $form_id ]['leads'][ $lead->ID ]['record_date'] = get_the_date( 'Y-m-d H:i', $lead->ID );
-			}
-
-			if ( $forms ) {
-
-				header( 'Content-type: text/csv' );
-				header( 'Content-Disposition: attachment; filename="wp-leads.csv"' );
-				header( 'Pragma: no-cache' );
-				header( 'Expires: 0' );
-
-				$file = fopen( 'php://output', 'w' );
-
-				// Print UTF8 encoding.
-				fprintf( $file, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) );
-
-				foreach ( $forms as $form_id => $form ) {
-					// Add default headers.
-					$form['headers']['form_name']   = 'form_name';
-					$form['headers']['form_id']     = 'form_id';
-					$form['headers']['record_date'] = 'record_date';
-
-					// Print headers.
-					fputcsv( $file, $form['headers'] );
-
-					foreach ( $form['leads'] as $lead ) {
-						$values_to_print = array();
-
-						foreach ( $form['headers'] as $header_key ) {
-							$values_to_print[ $header_key ] = isset( $lead[ $header_key ] ) ? $lead[ $header_key ] : '';
-						}
-
-						fputcsv( $file, $values_to_print );
-					}
-
-					fputcsv( $file, array() );
-				}
-
-				exit();
-			}
+				)
+			);
 		}
 	}
 
+	/**
+	 * Export the entries based on the given filters.
+	 *
+	 * @param \WP_REST_Request $request The request.
+	 *
+	 * @return \WP_REST_Response|\WP_Error The response containing CSV data or an error.
+	 */
+	public static function export_entries( $request ) {
+		$meta_query = array();
+
+		$args = array(
+			'post_type'      => self::get_post_type(),
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+		);
+
+		if ( $request->get_param( 'cf7_form' ) ) {
+			$meta_query[] = array(
+				'key'   => 'cf7_form',
+				'value' => (int) $request->get_param( 'cf7_form' ),
+			);
+		}
+
+		if ( $request->get_param( 'm' ) ) {
+			$month = substr( $request->get_param( 'm' ), 4, 2 );
+			$year  = substr( $request->get_param( 'm' ), 0, 4 );
+
+			$args['date_query'] = array(
+				array(
+					'year'  => $year,
+					'month' => $month,
+				),
+			);
+		}
+
+		if ( $meta_query ) {
+			$args['meta_query'] = $meta_query;
+		}
+
+		if ( $request->get_param( 'cf7_field_meta_key' ) && $request->get_param( 'cf7_field_meta_value' ) ) {
+			$meta_key   = sanitize_text_field( $request->get_param( 'cf7_field_meta_key' ) );
+			$meta_value = sanitize_text_field( $request->get_param( 'cf7_field_meta_value' ) );
+
+			$meta_query[] = array(
+				'key'     => $meta_key,
+				'value'   => $meta_value,
+				'compare' => 'LIKE',
+			);
+
+			if ( ! empty( $meta_query ) ) {
+				$args['meta_query'] = $meta_query;
+			}
+		}
+
+		$arr_post = get_posts( $args );
+
+		/**
+		 * Process all leads and prepare data for a single CSV export with unified headers across all forms.
+		 */
+		$csv_headers = array(
+			'form_name'     => 'form_name',
+			'form_id'       => 'form_id',
+			'record_date'   => 'record_date',
+			'cf7_form'      => 'cf7_form',
+			'cf7_action_id' => 'cf7_action_id',
+			'lead_type'     => 'lead_type',
+		);
+
+		$entries_data = array();
+
+		foreach ( $arr_post as $lead ) {
+			$form_id       = get_post_meta( $lead->ID, 'cf7_form', true );
+			$custom_fields = get_post_custom( $lead->ID );
+			$entry_data    = array(
+				'form_name'   => get_the_title( $form_id ) ? get_the_title( $form_id ) : __( 'Form does not exist', 'wpcf7-redirect' ),
+				'form_id'     => $form_id,
+				'record_date' => get_the_date( 'Y-m-d H:i', $lead->ID ),
+			);
+
+			foreach ( $custom_fields as $custom_field_key => $custom_field_value ) {
+				if ( '_' !== substr( $custom_field_key, 0, 1 ) &&
+					'action ' !== substr( $custom_field_key, 0, 7 ) &&
+					'files' !== $custom_field_key // Do not export files as CSV.
+				) {
+					$field_value = maybe_unserialize( reset( $custom_field_value ) );
+
+					if ( is_array( $field_value ) ) {
+						$entry_data[ $custom_field_key ] = implode( ',', $field_value );
+					} else {
+						$entry_data[ $custom_field_key ] = $field_value;
+					}
+
+					$csv_headers[ $custom_field_key ] = $custom_field_key;
+				}
+			}
+
+			$entries_data[] = $entry_data;
+		}
+
+		if ( empty( $entries_data ) ) {
+			return new WP_Error(
+				'no_entries',
+				__( 'No leads found to export.', 'wpcf7-redirect' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$filename = 'wp-leads-' . wp_date( 'Y-m-d' ) . '.csv';
+
+		// Start output buffering to capture CSV content.
+		ob_start();
+
+		$file = fopen( 'php://output', 'w' );
+
+		// Print UTF8 BOM for Excel compatibility.
+		fprintf( $file, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) );
+
+		// Print unified headers.
+		fputcsv( $file, array_values( $csv_headers ) );
+
+		// Print all leads with the same header structure.
+		foreach ( $entries_data as $entry_data ) {
+			$values_to_print = array();
+
+			foreach ( $csv_headers as $header_key => $header_value ) {
+				$values_to_print[] = isset( $entry_data[ $header_key ] ) ?
+					wp_kses_post( $entry_data[ $header_key ] ) : '';
+			}
+
+			fputcsv( $file, $values_to_print );
+		}
+
+		fclose( $file );
+		$csv_content = ob_get_clean();
+
+		// Set the appropriate headers.
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		header( 'Pragma: no-cache' );
+		header( 'Expires: 0' );
+
+		// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $csv_content;
+		// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
+		exit;
+	}
 
 	/**
-	 * Undocumented function
+	 * Set custom columns for leads post type.
 	 *
-	 * @param [array] $columns - list of columns.
-	 * @return [array] - the key of the column.
+	 * @param array<string,string> $columns Array of columns.
+	 * @return array<string,string> Modified array of columns.
 	 */
 	public static function set_custom_edit_wpcf7r_leads_columns( $columns ) {
-
 		$columns['form']         = __( 'Form', 'wpcf7-redirect' );
 		$columns['data_preview'] = __( 'Preview', 'wpcf7-redirect' );
 
+		// Move the date column to the end.
+		$date_column = isset( $columns['date'] ) ? $columns['date'] : '';
+		if ( $date_column ) {
+			unset( $columns['date'] );
+			$columns['date'] = $date_column;
+		}
+
 		return $columns;
 	}
+
 	/**
 	 * Get the leads post type
+	 *
+	 * @return string Post type name
 	 */
 	public static function get_post_type() {
 		return self::$post_type;
 	}
 
 	/**
-	 * Add A select filter on edit.php screen to filter records by form
+	 * Add a select filter on edit.php screen to filter records by form
+	 *
+	 * @return void
 	 */
 	public static function add_form_filter() {
-
-		$post_type = isset( $_GET['post_type'] ) ? sanitize_text_field( $_GET['post_type'] ) : '';
+		$post_type = isset( $_GET['post_type'] ) ? sanitize_text_field( wp_unslash( $_GET['post_type'] ) ) : '';
 
 		if ( $post_type && self::get_post_type() === $post_type ) {
 			$values = array();
@@ -236,27 +370,53 @@ class WPCF7R_Leads_Manager {
 				)
 			);
 
-			foreach ( $forms as $form ) :
+			foreach ( $forms as $form ) {
 				$values[ $form->post_title ] = $form->ID;
-			endforeach;
+			}
+
+			$meta_key_placeholder = __( 'Field', 'wpcf7-redirect' )
+				. ' (' . sprintf(
+					// translators: %s: the value of example.
+					__( 'e.g.: %s', 'wpcf7-redirect' ),
+					'your-email'
+				) . ')';
+			$meta_value_placeholder = __( 'Value', 'wpcf7-redirect' )
+				. ' (' . sprintf(
+					// translators: %s: the value of example.
+					__( 'e.g.: %s', 'wpcf7-redirect' ),
+					'user@example.com'
+				) . ')';
 
 			?>
-
 			<select name="cf7_form">
-				<option value=""><?php _e( 'Form', 'wpcf7-redirect' ); ?></option>
+				<option value=""><?php esc_html_e( 'Form', 'wpcf7-redirect' ); ?></option>
 				<?php
 					$current_v = isset( $_GET['cf7_form'] ) ? (int) $_GET['cf7_form'] : '';
 
 				foreach ( $values as $label => $value ) {
 					printf(
 						'<option value="%s"%s>%s</option>',
-						$value,
+						esc_attr( $value ),
 						$value === $current_v ? ' selected="selected"' : '',
-						$label
+						esc_html( $label )
 					);
 				}
 				?>
 			</select>
+			<div class="cf7r-meta-filter">
+				<input
+					name="cf7_field_meta_key"
+					type="text"
+					placeholder="<?php echo esc_html( $meta_key_placeholder ); ?>"
+					value="<?php echo isset( $_GET['cf7_field_meta_key'] ) ? esc_attr( sanitize_text_field( $_GET['cf7_field_meta_key'] ) ) : ''; ?>"
+				/>
+				<input
+					name="cf7_field_meta_value"
+					type="text"
+					placeholder="<?php echo esc_html( $meta_value_placeholder ); ?>"
+					value="<?php echo isset( $_GET['cf7_field_meta_value'] ) ? esc_attr( sanitize_text_field( $_GET['cf7_field_meta_value'] ) ) : ''; ?>"
+				/>
+			</div>
 			<?php
 		}
 	}
@@ -356,6 +516,13 @@ class WPCF7R_Leads_Manager {
 
 	/**
 	 * Insert new lead
+	 *
+	 * @param int    $cf7_form_id - The CF7 form ID.
+	 * @param array  $args - Arguments for the lead.
+	 * @param array  $files - Files submitted with the form.
+	 * @param string $lead_type - The lead type.
+	 * @param string $action_id - The action ID.
+	 * @return object - The lead object.
 	 */
 	public static function insert_lead( $cf7_form_id, $args, $files = array(), $lead_type = '', $action_id = '' ) {
 		$args['cf7_form']      = $cf7_form_id;
@@ -385,9 +552,9 @@ class WPCF7R_Leads_Manager {
 	/**
 	 * Save the action to the db lead
 	 *
-	 * @param  $lead_id
-	 * @param  $action_name
-	 * @param  $details
+	 * @param int    $lead_id     The ID of the lead.
+	 * @param string $action_name The name of the action.
+	 * @param array  $details     The action details to save.
 	 */
 	public static function save_action( $lead_id, $action_name, $details ) {
 		add_post_meta( $lead_id, 'action - ' . $action_name, $details );
@@ -395,30 +562,33 @@ class WPCF7R_Leads_Manager {
 
 	/**
 	 * Get a single action row
+	 *
+	 * @param object $lead - The lead object.
+	 * @return string - HTML output for lead row.
 	 */
 	public function get_lead_row( $lead ) {
 		ob_start();
 		do_action( 'before_wpcf7r_lead_row', $this );
 		?>
 
-		<tr class="primary" data-postid="<?php echo $lead->get_id(); ?>">
+		<tr class="primary" data-postid="<?php echo esc_attr( $lead->get_id() ); ?>">
 			<td class="manage-column column-primary sortable desc edit column-id">
-				<?php echo $lead->get_id(); ?>
+				<?php echo esc_html( $lead->get_id() ); ?>
 				<div class="row-actions">
 					<span class="edit">
-						<a href="<?php echo get_edit_post_link( $lead->get_id() ); ?>" data-id="<?php echo $lead->get_id(); ?>" aria-label="<?php _e( 'View', 'wpcf7-redirect' ); ?>" target="_blank"><?php _e( 'View', 'wpcf7-redirect' ); ?></a> |
+						<a href="<?php echo esc_url( get_edit_post_link( $lead->get_id() ) ); ?>" data-id="<?php echo esc_attr( $lead->get_id() ); ?>" aria-label="<?php esc_attr_e( 'View', 'wpcf7-redirect' ); ?>" target="_blank"><?php esc_html_e( 'View', 'wpcf7-redirect' ); ?></a> |
 					</span>
 					<span class="trash">
-						<a href="#" class="submitdelete" data-id="<?php echo $lead->get_id(); ?>" aria-label="<?php _e( 'Move to trash', 'wpcf7-redirect' ); ?>"><?php _e( 'Move to trash', 'wpcf7-redirect' ); ?></a> |
+						<a href="#" class="submitdelete" data-id="<?php echo esc_attr( $lead->get_id() ); ?>" aria-label="<?php esc_attr_e( 'Move to trash', 'wpcf7-redirect' ); ?>"><?php esc_html_e( 'Move to trash', 'wpcf7-redirect' ); ?></a> |
 					</span>
 					<?php do_action( 'wpcf7r_after_lead_links', $lead ); ?>
 				</div>
 			</td>
 			<td class="manage-column column-primary sortable desc edit column-date">
-				<?php echo $lead->get_date(); ?>
+				<?php echo esc_html( $lead->get_date() ); ?>
 			</td>
-			<td class="manage-column column-primary sortable desc edit column-time"><?php echo $lead->get_time(); ?></td>
-			<td class="manage-column column-primary sortable desc edit column-type"><?php echo $lead->get_lead_type(); ?></td>
+			<td class="manage-column column-primary sortable desc edit column-time"><?php echo esc_html( $lead->get_time() ); ?></td>
+			<td class="manage-column column-primary sortable desc edit column-type"><?php echo esc_html( $lead->get_lead_type() ); ?></td>
 			<td></td>
 		</tr>
 

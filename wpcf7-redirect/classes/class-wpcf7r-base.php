@@ -13,58 +13,58 @@ defined( 'ABSPATH' ) || exit;
 class WPCF7R_Base {
 
 	/**
-	 * Holds a refrence to the object instance.
+	 * Holds a reference to the object instance.
 	 *
-	 * @var [object]
+	 * @var self|null
 	 */
 	public static $instance;
 
 	/**
-	 * Holds a refrence to the plugin settings object.
+	 * Holds a reference to the plugin settings object.
 	 *
-	 * @var [WPCF7r_Settings]
+	 * @var WPCF7r_Settings
 	 */
 	public $wpcf_settings;
 
 	/**
-	 * Holds a refrence to the form helper object.
+	 * Holds a reference to the form helper object.
 	 *
-	 * @var [WPCF7r_Form_Helper]
+	 * @var WPCF7r_Form_Helper
 	 */
 	public $wpcf7_redirect;
 
 	/**
-	 * Holds a refrence to the utils object.
+	 * Holds a reference to the utils object.
 	 *
-	 * @var [WPCF7r_Utils]
+	 * @var WPCF7r_Utils
 	 */
 	public $wpcf7_utils;
 
 	/**
-	 * Holds a refrence to the submission object.
+	 * Holds a reference to the submission object.
 	 *
-	 * @var [WPCF7r_Submission]
+	 * @var WPCF7r_Submission
 	 */
 	public $wpcf7_submission;
 
 	/**
-	 * Holds a refrence to the user panel object.
+	 * Holds a reference to the user panel object.
 	 *
-	 * @var [WPCF7R_User]
+	 * @var WPCF7R_User
 	 */
 	public $wpcf7_user_panel;
 
 	/**
-	 * Holds a refrence to the plugin version.
+	 * Holds a reference to the plugin version.
 	 *
-	 * @var [string]
+	 * @var string
 	 */
 	public $version;
 
 	/**
-	 * Holds a refrence to the plugin path.
+	 * Holds a reference to the plugin path.
 	 *
-	 * @var [string]
+	 * @var string
 	 */
 	public $plugin_path;
 
@@ -121,11 +121,6 @@ class WPCF7R_Base {
 	 * Some general plugin hooks
 	 */
 	public function add_action_hooks() {
-		add_action( 'before_settings_fields', array( $this->wpcf7_utils, 'show_admin_notices' ), 10 );
-
-		add_action( 'admin_notices', array( $this, 'show_admin_notices' ), 10 );
-
-		add_action( 'admin_init', array( $this, 'dismiss_admin_notice' ) );
 		// form submission hook.
 		add_action( 'wpcf7_before_send_mail', array( $this->wpcf7_submission, 'handle_valid_actions' ) );
 		// validation actions.
@@ -134,7 +129,7 @@ class WPCF7R_Base {
 		add_filter( 'wpcf7_feedback_response', array( $this->wpcf7_submission, 'manipulate_cf7_response_object' ), 10, 2 );
 		add_action(
 			'init',
-			function() {
+			function () {
 				if ( ! is_admin() ) {
 					// handle form rendering.
 					add_filter( 'wpcf7_contact_form_properties', array( $this->wpcf7_utils, 'render_actions_elements' ), 10, 2 );
@@ -158,8 +153,9 @@ class WPCF7R_Base {
 			add_action( 'restrict_manage_posts', array( 'WPCF7R_Leads_Manager', 'add_form_filter' ) );
 			add_filter( 'parse_query', array( 'WPCF7R_Leads_Manager', 'filter_request_query' ), 10 );
 			add_action( 'admin_init', array( 'WPCF7R_Leads_Manager', 'admin_init_scripts' ) );
-			add_action( 'admin_init', array( 'WPCF7R_Leads_Manager', 'export_current_filtered_view' ), 10, 2 );
 		}
+
+		add_action( 'rest_api_init', array( 'WPCF7R_Leads_Manager', 'register_endpoints' ) );
 	}
 
 	/**
@@ -169,90 +165,44 @@ class WPCF7R_Base {
 	}
 
 	/**
-	 * Dismiss admin notice
-	 *
-	 * @return void
-	 */
-	public function dismiss_admin_notice() {
-		if ( isset( $_REQUEST['dismiss-cf7r-notices'] ) && current_user_can( 'administrator' ) ) {
-			delete_option( 'wpcf7_redirect_notifications' );
-		}
-	}
-	/**
-	 * Display admin notifications
-	 *
-	 * @return void
-	 */
-	public function show_admin_notices() {
-		$notices = get_option( 'wpcf7_redirect_notifications' );
-
-		add_action(
-			'admin_footer',
-			function() {
-				?>
-			<script>jQuery(document.body).on('click', '.wpcf7r-notice .notice-dismiss' , function(e){
-				e.preventDefault();
-				var url = window.location.href;
-				if (url.indexOf('?') > -1){
-					url += '&dismiss-cf7r-notices=1'
-				}else{
-					url += '?dismiss-cf7r-notices=1'
-				}
-
-				window.location.href = url;
-			});</script>
-				<?php
-			}
-		);
-		if ( $notices ) {
-			foreach ( $notices as $notice_type => $notice ) :
-				?>
-
-				<div class="notice is-dismissible <?php echo esc_html( $notice_type ); ?>">
-					<p><?php echo $notice; ?></p>
-				</div>
-
-				<?php
-			endforeach;
-		}
-	}
-
-	/**
 	 * Reset redirection for contact form 7 settings
 	 *
 	 * @return void
 	 */
-	public function wpcf7r_reset_settings() {
-		if ( current_user_can( 'administrator' ) && wpcf7_validate_nonce() ) {
-			$options_list = array(
-				'wpcf7r-extensions-list-updated',
-				'wpcf7r-extensions-list',
-				'wpcf7r_activation_wpcf7r-send-mail-sku',
-				'wpcf7r_activation_wpcf7r-register-sku',
-				'wpcf7r_activation_wpcf7r-popup-sku',
-				'wpcf7r_activation_wpcf7r-paypal-sku',
-				'wpcf7r_activation_wpcf7r-mailchimp-sku',
-				'wpcf7r_activation_wpcf7r-login-sku',
-				'wpcf7r_activation_wpcf7r-custom-errors-sku',
-				'wpcf7r_activation_wpcf7r-create-post-sku',
-				'wpcf7r_activation_wpcf7r-conditional-logic-sku',
-				'wpcf7r_activation_wpcf7r-api-sku',
-				'wpcf7r_activation_wpcf7r-actions-bundle-sku',
-				'wpcf7_redirect_version',
-				'wpcf7_redirect_pro_version',
-				'wpcf7_redirect_pro_verion',
-				'wpcf7_redirect_dismiss_banner',
-				'wpcf7_redirect_admin_notice_ver_dismiss',
-				'wpcf7_migration_completed',
-				'wpcf_debug',
-				'wpcf7_redirect_admin_notice_dismiss',
-				'wpcf7r-extensions-banner-updated',
-			);
+	public static function wpcf7r_reset_settings() {
+		$options_list = array(
+			'wpcf7r-extensions-list-updated',
+			'wpcf7r-extensions-list',
+			'wpcf7r_activation_wpcf7r-send-mail-sku',
+			'wpcf7r_activation_wpcf7r-register-sku',
+			'wpcf7r_activation_wpcf7r-popup-sku',
+			'wpcf7r_activation_wpcf7r-paypal-sku',
+			'wpcf7r_activation_wpcf7r-mailchimp-sku',
+			'wpcf7r_activation_wpcf7r-login-sku',
+			'wpcf7r_activation_wpcf7r-custom-errors-sku',
+			'wpcf7r_activation_wpcf7r-create-post-sku',
+			'wpcf7r_activation_wpcf7r-conditional-logic-sku',
+			'wpcf7r_activation_wpcf7r-api-sku',
+			'wpcf7r_activation_wpcf7r-actions-bundle-sku',
+			'wpcf7_redirect_version',
+			'wpcf7_redirect_pro_version',
+			'wpcf7_redirect_pro_verion',
+			'wpcf7_redirect_dismiss_banner',
+			'wpcf7_redirect_admin_notice_ver_dismiss',
+			'wpcf7_migration_completed',
+			'wpcf_debug',
+			'wpcf7_redirect_admin_notice_dismiss',
+			'wpcf7r-extensions-banner-updated',
+			\WPCF7R_Dashboard::SUBMISSION_COUNT_CACHE,
+			\WPCF7R_Dashboard::SUBMISSION_LAST_ENTRY_CACHE,
+			\WPCF7R_Dashboard::SUBMISSION_TODAY_ENTRIES_CACHE,
+		);
 
-			foreach ( $options_list as $option ) {
-				delete_option( $option );
-			}
+		foreach ( $options_list as $option ) {
+			delete_option( $option );
 		}
+
+		delete_transient( \WPCF7R_Dashboard::SUBMISSION_CHART_DATA_CACHE );
 	}
 	/**
 	 * Register plugins ajax hooks
@@ -275,9 +225,6 @@ class WPCF7R_Base {
 
 		// get popup template.
 		add_action( 'wp_ajax_wpcf7r_get_action_template', array( $this->wpcf7_utils, 'get_action_template' ) );
-
-		// reset plugin settings.
-		add_action( 'wp_ajax_wpcf7r_reset_settings', array( $this, 'wpcf7r_reset_settings' ) );
 	}
 
 	/**

@@ -3,17 +3,17 @@
 /**
  * Get the path for the admin page
  *
- * @return void
+ * @return string Admin page path
  */
 function wpcf7_get_freemius_addons_path() {
 	return 'admin.php?page=wpcf7r-addons-upsell';
 }
 
 /**
- * Check if this the user has a premium liscense
+ * Check if this the user has a premium license
  *
- * @param [type] $func
- * @return void
+ * @param string $func The functionality to check premium access for.
+ * @return boolean True if user has premium access, false otherwise
  */
 function wpcf7r_is_premium_user( $func ) {
 	return true;
@@ -22,7 +22,7 @@ function wpcf7r_is_premium_user( $func ) {
 /**
  * Check if the parent plugins is active and loaded
  *
- * @return void
+ * @return boolean True if parent plugin is active and loaded
  */
 function wpcf7r_is_parent_active_and_loaded() {
 	return true;
@@ -31,7 +31,7 @@ function wpcf7r_is_parent_active_and_loaded() {
 /**
  * Check if the parent plugin is active
  *
- * @return void
+ * @return boolean True if parent plugin is active
  */
 function wpcf7r_is_parent_active() {
 	$active_plugins = get_option( 'active_plugins', array() );
@@ -49,6 +49,11 @@ function wpcf7r_is_parent_active() {
 	return false;
 }
 
+/**
+ * Get the Freemius ID for the plugin
+ *
+ * @return int Freemius ID
+ */
 function wpcf7_freemius_get_id() {
 	return 9546;
 }
@@ -56,14 +61,17 @@ function wpcf7_freemius_get_id() {
 /**
  * General loading addon function
  *
- * @param [type] $name
+ * @param string $name The name of the addon to load.
  * @return void
  */
 function wpcf7r_load_freemius_addon( $name ) {
 	$callback    = $name;
 	$loaded_hook = $name . '_loaded';
 
-	add_action( 'plugins_loaded', function () use ( $callback, $loaded_hook ) {
-		do_action( $loaded_hook );
-	} );
+	add_action(
+		'plugins_loaded',
+		function () use ( $callback, $loaded_hook ) {
+			do_action( $loaded_hook );
+		}
+	);
 }

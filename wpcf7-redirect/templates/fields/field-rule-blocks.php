@@ -5,12 +5,26 @@
 
 defined( 'ABSPATH' ) || exit;
 
-if ( ! wpcf7r_conditional_logic_enabled() ) {
-	return;
+$is_upsell = ! wpcf7r_conditional_logic_enabled();
+
+if ( $is_upsell ) {
+	$field['blocks'] = array(
+		'block_1' => array(
+			'groups' => array(
+				'group-0' => array(
+					array(
+						'if'        => '',
+						'condition' => '',
+						'value'     => '',
+					),
+				),
+			),
+		),
+	);
 }
 ?>
 
-<div class="conditional-logic-blocks <?php echo $field['has_conditional_logic'] ? 'active' : ''; ?>">
+<div class="conditional-logic-blocks <?php echo $is_upsell ? 'rcf7-conditional-upsell' : ''; ?> <?php echo $field['has_conditional_logic'] ? 'active' : ''; ?>">
 	<div class="conditional-groups-wrap">
 		<div class="conditional-groups-tabs">
 			<div class="conditional-group-blocks">
@@ -28,7 +42,9 @@ if ( ! wpcf7r_conditional_logic_enabled() ) {
 					</div>
 					<div class="qs-col qs-col-12">
 						<div class="groups-actions">
-							<a href="#" class="button-primary wpcfr-add-group"><?php _e( 'OR', 'wpcf7-redirect' ); ?></a>
+							<button class="button-primary wpcfr-add-group" <?php disabled( $is_upsell ); ?> >
+								<?php esc_html_e( 'Add OR group', 'wpcf7-redirect' ); ?>
+							</button>
 						</div>
 					</div>
 				</div>

@@ -23,11 +23,14 @@ $value       = isset( $field['value'] ) ? $field['value'] : '';
 	</label>
 	<?php if ( $sub_title ) : ?>
 		<div class="wpcf7-subtitle">
-			<?php echo esc_html( $sub_title ); ?>
+			<?php echo wp_kses_post( $sub_title ); ?>
 		</div>
 	<?php endif; ?>
-	<textarea rows="10" class="wpcf7-redirect-<?php echo esc_html( $name ); ?>-fields" placeholder="<?php echo esc_html( $placeholder ); ?>" name="wpcf7-redirect<?php echo esc_html( $prefix ); ?>[<?php echo esc_html( $name ); ?>]"><?php echo esc_html( $value ); ?></textarea>
+	<textarea rows="10" class="wpcf7-redirect-<?php echo esc_html( $name ); ?>-fields" placeholder="<?php echo esc_html( $placeholder ); ?>" name="wpcf7-redirect<?php echo esc_html( $prefix ); ?>[<?php echo esc_html( $name ); ?>]"><?php echo esc_textarea( $value ); ?></textarea>
 	<div class="field-footer">
-		<?php echo  $footer ; ?>
+		<?php
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $footer;
+		?>
 	</div>
 </div>

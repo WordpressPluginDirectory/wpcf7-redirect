@@ -1,11 +1,119 @@
-var wpcf7_redirect_admin;
+// @ts-check
 
-(function ($) {
+import '../css/wpcf-redirect-backend-style.scss';
+
+import './wpcf7-redirect-extensions.js';
+import { Wpcf7_admin_validations } from './wpcf7-redirect-validation.js';
+
+let wpcf7_redirect_admin;
+
+(function ( /** @type {import("@types/jquery")} */ $) {
+	let addNewActionAutoOpenTimeout = null;
+
+	/**
+	 * Get the default setting for TinyMCE editor.
+	 * 
+	 * @see wp_enqueue_editor()
+	 * 
+	 * @returns
+	 */
+	function getDefaultTinyMCEConfig() {
+		return {
+			plugins: "charmap,colorpicker,hr,lists,media,paste,tabfocus,textcolor,fullscreen,wordpress,wpautoresize,wpeditimage,wpemoji,wpgallery,wplink,wpdialogs,wptextpattern,wpview",
+			toolbar1: "formatselect,bold,italic,bullist,numlist,blockquote,alignleft,aligncenter,alignright,link,wp_more,spellchecker,fullscreen,wp_adv",
+			toolbar2: "strikethrough,hr,forecolor,pastetext,removeformat,charmap,outdent,indent,undo,redo,wp_help",
+			wpautop: true,
+			entity_encoding: "raw",
+			convert_urls: false,
+			branding: false,
+			menubar: false,
+			fix_list_elements: true,
+			entities: "38,amp,60,lt,62,gt",
+			end_container_on_empty_block: true,
+			relative_urls: false,
+			resize: "vertical",
+			remove_script_host: false,
+			wpeditimage_html5_captions: true,
+			theme: "modern",
+			keep_styles: false,
+			formats: {
+				alignleft: [
+					{selector: "p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li", styles: {textAlign:"left"}},
+					{selector: "img,table,dl.wp-caption", classes: "alignleft"}
+				],
+				aligncenter: [
+					{selector: "p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li", styles: {textAlign:"center"}},
+					{selector: "img,table,dl.wp-caption", classes: "aligncenter"}
+				],
+				alignright: [
+					{selector: "p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li", styles: {textAlign:"right"}},
+					{selector: "img,table,dl.wp-caption", classes: "alignright"}
+				],
+				strikethrough: {inline: "del"}
+			}
+		}
+	}
+
+	/**
+	 * Get the configuration of TinyMCE.
+	 * 
+	 * Return an existing configuration, otherwise get a default one. 
+	 * 
+	 * @returns 
+	 */
+	function getTinyMCEConfig() {
+		
+		if (
+			typeof tinyMCEPreInit !== 'undefined' && 
+			typeof tinyMCEPreInit.mceInit === 'object' && 
+			Object.keys(tinyMCEPreInit.mceInit).length > 0
+		) {
+			
+			const editorKeys = Object.keys(tinyMCEPreInit.mceInit).filter(key => key.startsWith('editor-'));
+			
+			if (editorKeys.length > 0) {
+				return tinyMCEPreInit.mceInit[editorKeys[0]];
+			}
+		}
+		
+		return getDefaultTinyMCEConfig();
+	}
+
+	/**
+	 * Get the default setting for TinyMCE quick tags editor.
+	 * 
+	 * @see wp_enqueue_editor()
+	 * 
+	 * @returns
+	 */
+	function getDefaultQuickTagsConfig() {
+		return {
+			buttons: "strong,em,link,block,del,ins,img,ul,ol,li,code,more,close"
+		}
+	}
+
+	/**
+	 * Main admin class for Contact Form 7 Redirection plugin
+	 * 
+	 * Handles all admin interface functionality including action management, 
+	 * form display, field validations, AJAX operations, and UI interactions.
+	 * 
+	 * @class
+	 * @constructor
+	 * @requires jQuery
+	 * @requires wp.media
+	 * @requires tinymce
+	 * @requires quicktags
+	 */
 	function Wpcf7_redirect_admin() {
 
 		/**
-		 * Initialize the class
-		 * @return {[type]} [description]
+		 * Initialize the class and set up the admin functionality
+		 * 
+		 * Sets up all necessary parameters, hooks, and initial UI state
+		 * for the Contact Form 7 Redirection plugin admin interface.
+		 * 
+		 * @return {void}
 		 */
 		this.init = function () {
 			this.setparams();
@@ -29,7 +137,12 @@ var wpcf7_redirect_admin;
 		};
 
 		/**
-		 * Avoid alert while trying to leave page
+		 * Avoid alert while trying to leave page by setting default select values
+		 * 
+		 * Ensures that all select fields in action containers have a proper default value selected
+		 * to prevent unwanted "unsaved changes" alerts when navigating away from the page.
+		 * 
+		 * @return {void}
 		 */
 		this.mark_default_select_fields = function () {
 			$('.action-container select').each(function () {
@@ -39,26 +152,57 @@ var wpcf7_redirect_admin;
 			})
 		}
 
-		this.init_editors = function ($editor_action_wrap) {
-			if ('undefined' !== typeof tinymce && 'undefined' !== typeof tinyMCEPreInit) {
-				editor_id = $editor_action_wrap.find('textarea').prop('id');
-
-				if (editor_id) {
-					try {
-						tinymce.init(editor_id, { selector: 'textarea' });
-						tinymce.execCommand('mceAddEditor', false, editor_id);
-						quicktags({ id: editor_id });
-
-					} catch (err) {
-						console.log(err);
-					}
-				}
+		/**
+		 * Initialize TinyMCE editor instances for rich text fields
+		 * 
+		 * @param {jQuery} editorActionWrap - The jQuery element wrapping the editor
+		 * @return {void}
+		 */
+		this.init_editors = function (editorActionWrap) {
+			if ( 'undefined' === typeof tinymce ) {
+				return;
 			}
+
+			// Get all editor IDs from textareas within the editor action wrap.
+			const editorIds = editorActionWrap.find('textarea').map(function() {
+				return this.id ? this.id : null;
+			}).get().filter(Boolean);
+	
+			/*
+			 * Because we are sending the new actions via API equests,
+			 * the TinyMCE editor is not initialized since the default initialization by WP is done only at page loading.
+			 * We need to manually initialized the newly added instances.
+			 * 
+			 * @see https://github.com/WordPress/wordpress-develop/blob/7aae2ea200f73bee61bf095d3e1dcdaec8cc91cf/src/wp-includes/class-wp-editor.php#L1675-L1730
+			*/
+			editorIds.forEach( id => {
+				const tinymceConfig = getTinyMCEConfig();
+				tinymceConfig.selector = `#${id}`;
+
+				const tinymceQuickTagsConfig = getDefaultQuickTagsConfig();
+				tinymceQuickTagsConfig.id = id;
+
+				window.tinymce.init( tinymceConfig );
+				window.quicktags( tinymceQuickTagsConfig );
+			});
 		}
+		
+		/**
+		 * Initialize WordPress color picker on all colorpicker elements
+		 * 
+		 * @return {void}
+		 */
 		this.init_colorpickers = function () {
 			$('input.colorpicker').addClass('rendered').wpColorPicker();
 		}
 
+		/**
+		 * Set parameters and selectors used throughout the admin interface
+		 * 
+		 * Defines all jQuery selectors and counters used by the admin functionality.
+		 * 
+		 * @return {void}
+		 */
 		this.setparams = function () {
 			/**
 			 * Define jquery selectors
@@ -67,7 +211,7 @@ var wpcf7_redirect_admin;
 			this.banner_selector = '.wpcfr-banner-holder';
 			this.add_and_selector = '.add-condition';
 			this.row_template_selector = '.row-template';
-			this.remove_and_selector = '.qs-condition-actions .dashicons-minus';
+			this.remove_and_selector = '.qs-condition-actions .rcf7-delete-conditional-rule';
 			this.add_group_button_selector = '.wpcfr-add-group';
 			this.rule_group_selector = '.wpcfr-rule-group';
 			this.edit_block_title_selector = '.conditional-group-titles .dashicons-edit';
@@ -89,7 +233,6 @@ var wpcf7_redirect_admin;
 			this.move_action_to_trash_selector = '.actions-list .row-actions .trash a';
 			this.dupicate_action_selector = '.actions-list .row-actions .duplicate a';
 			this.move_lead_to_trash_selector = '.leads-list .trash a';
-			this.add_new_action_selector = '.wpcf7-add-new-action';
 			this.custom_checkbox_selector = '.wpcf7r-checkbox input';
 			this.action_title_field = '.wpcf7-redirect-post-title-fields';
 			this.migrate_from_cf7_api_selector = '.migrate-from-send-to-api';
@@ -119,11 +262,16 @@ var wpcf7_redirect_admin;
 		}
 
 		/**
-		 * Initialize Select 2 fields
+		 * Initialize Select2 fields throughout the admin interface
+		 * 
+		 * Applies the Select2 jQuery plugin to all uninitialized select fields
+		 * with the select2-field class to enhance the user experience.
+		 * 
+		 * @return {void}
 		 */
 		this.init_select2 = function (e) {
 			$('.select2-field select:not(.rendered)').each(function () {
-				var options = {
+				const options = {
 					width: 'resolve'
 				};
 				$('.select2-field select:not(.rendered)').select2(options).addClass('rendered');
@@ -131,17 +279,22 @@ var wpcf7_redirect_admin;
 		}
 
 		/**
-		 * Init wp media uploader
+		 * Initialize WordPress media uploader for image/file fields
+		 * 
+		 * Sets up the WordPress media library integration for all media upload fields,
+		 * allowing users to select or upload files via the media library.
+		 * 
+		 * @return {void}
 		 */
 		this.init_media_field = function () {
-			var $imgContainer, imgIdInput = '';
+			let imgContainer, imgIdInput = '';
 
 			if (typeof wp.media == 'undefined') {
 				console.log('no media support');
 				return;
 			}
-
-			file_frame = wp.media.frames.file_frame = wp.media({
+			
+			const file_frame = wp.media.frames.file_frame = wp.media({
 				frame: 'post',
 				state: 'insert',
 				multiple: false
@@ -149,14 +302,14 @@ var wpcf7_redirect_admin;
 
 			file_frame.on('insert', function (e) {
 				// Get media attachment details from the frame state
-				var attachment = file_frame.state().get('selection').first().toJSON();
+				const attachment = file_frame.state().get('selection').first().toJSON();
 
-				if ($imgContainer.hasClass('file-container')) {
-					$imgContainer.find('.file-url').val(attachment.url);
+				if (imgContainer.hasClass('file-container')) {
+					imgContainer.find('.file-url').val(attachment.url);
 				} else {
-					$imgContainer.find('.popup-image').remove();
+					imgContainer.find('.popup-image').remove();
 					// Send the attachment URL to our custom image input field.
-					$imgContainer.prepend('<img src="' + attachment.url + '" alt="" style="max-width:100px;" class="popup-image"/>');
+					imgContainer.prepend('<img src="' + attachment.url + '" alt="" style="max-width:100px;" class="popup-image"/>');
 				}
 
 				// Send the attachment id to our hidden input
@@ -165,95 +318,113 @@ var wpcf7_redirect_admin;
 
 			$(document.body).on('click', '.image-uploader-btn', function () {
 				imgIdInput = $(this).parent().find('input[type=hidden]');
-				$imgContainer = $(this).parent();
+				imgContainer = $(this).parent();
 				file_frame.open();
 			});
 
-			$(document.body).on('click', '.image-remove-btn', function () {
-				$imgIdInput = $(this).parent().find('input[type=hidden]');
-				$imgContainer = $(this).parent();
+			$(document.body).on('click', '.image-remove-btn, .input-remove-btn', function () {
+				imgIdInput = $(this).parent().find('input[type=hidden]');
+				imgContainer = $(this).parent();
 
-				if ($imgContainer.hasClass('file-container')) {
-					$imgContainer.find('.file-url').val('');
+				if (imgContainer.hasClass('file-container')) {
+					imgContainer.find('.file-url').val('');
 				} else {
-					$imgContainer.find('img').remove();
+					imgContainer.find('img').remove();
 				}
 
-				$imgIdInput.val('');
+				imgIdInput.val('');
 			});
 		}
 
 		/**
-		 * Beutify the user input (XML/JSON)
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Beautify the user input JSON or XML for better readability
+		 * 
+		 * Formats JSON or XML code in textareas to improve readability
+		 * by adding proper indentation and structure.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
 		 */
 		this.beutify_json_and_css = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			var $parent = $clicked_button.parents('.hidden-action');
-			var record_type = $parent.find('.field-wrap-record_type select').val();
+			const button = $(e.currentTarget);
+			const hiddenActionParent = button.parents('.hidden-action');
+			const record_type = hiddenActionParent.find('.field-wrap-record_type select').val();
 			this.remove_errors();
-			var $textarea = $('textarea', $parent);
-			var string = $textarea.val();
+			const textareaElement = $('textarea', hiddenActionParent);
+			let string = textareaElement.val();
 			try {
 				if (record_type == 'json') {
 					var json_object = jQuery.parseJSON(string);
 					if (json_object) {
 						string = JSON.stringify(json_object, null, "\t");
 						if (string) {
-							$textarea.val(string);
+							textareaElement.val(string);
 						}
 					}
 				} else if (record_type == 'xml') {
 					var xml_object = jQuery.parseXML(string);
 					if (xml_object) {
 						var xmlString = (new XMLSerializer()).serializeToString(xml_object);
-						$textarea.val(xmlString);
+						textareaElement.val(xmlString);
 					}
 				}
 			} catch (err) {
-				this.add_error($textarea, err);
+				this.add_error(textareaElement, err);
 			}
 		}
 
 		/**
-		 * Init sortable elements
+		 * Initialize sortable elements for drag-and-drop functionality
+		 * 
+		 * Sets up jQuery UI sortable on action lists to allow reordering
+		 * actions via drag and drop.
+		 * 
+		 * @return {void}
 		 */
 		this.init_draggable = function () {
 			var _this = this;
+
+			const fixHelper = function (e, ui) {
+				ui.children().children().each(function () {
+					$(this).width($(this).width());
+				});
+				return ui;
+			};
 
 			$('#the_list').sortable({
 				'items': '.drag',
 				'axis': 'y',
 				'helper': fixHelper,
 				'update': function (e, ui) {
-					params = {
+					const params = {
 						'order': $('#the_list').sortable('serialize')
 					};
 					_this.make_ajax_call('wpcf7r_set_action_menu_order', params, 'after_ajax_call');
 
-					var actionid = $(ui.item).data('actionid');
+					const actionId = $(ui.item).data('actionid');
 
-					$(ui.item).after($('.action-container[data-actionid=' + actionid + ']'));
+					$(ui.item).after($('.action-container[data-actionid=' + actionId + ']'));
 					_this.renumber_rows();
 				}
 			});
 
-			var fixHelper = function (e, ui) {
-				ui.children().children().each(function () {
-					$(this).width($(this).width());
-				});
-				return ui;
-			};
 		}
 
 		/**
-		 * Replace or add query parameter to url
+		 * Replace or add query parameter to URL
+		 * 
+		 * Modifies a URL by either replacing the value of an existing parameter
+		 * or adding a new parameter if it doesn't exist.
+		 * 
+		 * @param {string} uri - The URL to modify
+		 * @param {string} key - The parameter name
+		 * @param {string} value - The parameter value
+		 * @return {string} - The modified URL
 		 */
 		this.replace_query_var = function (uri, key, value) {
-			var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
-			var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+			const re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+			const separator = uri.indexOf('?') !== -1 ? "&" : "?";
 			if (uri.match(re)) {
 				return uri.replace(re, '$1' + key + "=" + value + '$2');
 			}
@@ -263,11 +434,15 @@ var wpcf7_redirect_admin;
 		}
 
 		/**
-		 * A callback used to rearange numbering after sort
-		 * @return {[type]} [description]
+		 * Renumber rows in the actions table
+		 * 
+		 * Updates the displayed sequence numbers after sorting
+		 * or adding/removing actions.
+		 * 
+		 * @return {void}
 		 */
 		this.renumber_rows = function () {
-			numbering = 1;
+			let numbering = 1;
 			$('#the_list tr .num:visible').each(function () {
 				$(this).html(numbering);
 				numbering++;
@@ -275,8 +450,12 @@ var wpcf7_redirect_admin;
 		}
 
 		/**
-		 * Register all the event handlers
-		 * @return {[type]} [description]
+		 * Register all the event handlers for the admin interface
+		 * 
+		 * Sets up jQuery event listeners for all interactive elements
+		 * in the admin interface.
+		 * 
+		 * @return {void}
 		 */
 		this.register_action_hooks = function () {
 
@@ -312,8 +491,6 @@ var wpcf7_redirect_admin;
 			$(document.body).on('click', this.move_lead_to_trash_selector, this.move_post_to_trash.bind(this));
 			//after ajax call handler
 			$(document.body).on('wpcf7r_after_ajax_call', this.after_ajax_call.bind(this));
-			//add new action
-			$(document.body).on('click', this.add_new_action_selector, this.add_new_action.bind(this));
 			//checkbox change event
 			$(document.body).on('change', this.custom_checkbox_selector, this.checkbox_changed.bind(this));
 			//title change
@@ -350,68 +527,86 @@ var wpcf7_redirect_admin;
 			$(document.body).on('click' , this.close_popup_button_selector, this.close_popup.bind(this));
 			//change selected action
 			$(document.body).on('change', this.select_action_selector, this.select_action.bind(this));
+			$(document.body).on('change', '.cf7r-rule-status', toggleActionStatus);
 		}
 
 		/**
-		 * close open popups
-		 * @param {*} e
+		 * Close open popups
+		 * 
+		 * Removes popup containers from the DOM when dismissed.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
 		 */
 		this.close_popup = function(e){
 			$('.wpcfr-popup-wrap').remove();
 		}
 		/**
-		 * show or hide mail tags section
-		 * @param {event} e
+		 * Toggle the mail tags section visibility
+		 * 
+		 * Shows or hides the mail tags reference section when clicked.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
 		 */
 		this.toggle_mail_tags = function (e) {
-			var $clicked_button = $(e.currentTarget);
-			$clicked_button.next().slideToggle('fast');
+			const button = $(e.currentTarget);
+			button.next().slideToggle('fast');
 		}
 
 		/**
-		 * Gets the available mailchimp lists
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Handler for creating a new MailChimp list
+		 * 
+		 * Prompts the user for a list name and calls the list creation API.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void|boolean} - Returns false if validation fails
 		 */
 		this.mailchimp_create_list_handler = function (e) {
-			var $clicked_button = $(e.currentTarget);
-			var $parent_action = $clicked_button.parents('.action-container').first();
-			var list_name = prompt("Please enter list name");
+			const list_name = prompt("Please enter list name");
 			if (list_name != null) {
 				this.mailchimp_get_lists_handler(e, list_name);
 			}
 		}
 
 		/**
-		 * Set the available mailchimp tags on the merge table
-		 * @return {[type]} [description]
+		 * Set available MailChimp tags based on selected list
+		 * 
+		 * Updates the merge fields dropdowns based on the selected MailChimp list.
+		 * 
+		 * @param {Event} e - The change event object
+		 * @return {void}
 		 */
 		this.mailchimp_list_select_handler = function (e) {
-			var $changed_element = $(e.currentTarget);
-			var $parent_action = $changed_element.parents('.action-container').first();
-			var lists = $parent_action.find('.field-wrap-mailchimp_settings').data('lists');
-			var selected_list = $parent_action.find(this.mailchimp_list_selector).val();
+			const changedElement = $(e.currentTarget);
+			const parentAction = changedElement.parents('.action-container').first();
+			var lists = parentAction.find('.field-wrap-mailchimp_settings').data('lists');
+			const selected_list = parentAction.find(this.mailchimp_list_selector).val();
 			lists = this.maybe_parse_json(lists);
-			list_fields = lists[selected_list].list_fields;
-			merge_tags_selects = $parent_action.find('.field-wrap-mailchimp_key select');
+			
+			const list_fields = lists[selected_list].list_fields;
+			const merge_tags_selects = parentAction.find('.field-wrap-mailchimp_key select');
+
 			$.each(merge_tags_selects, function (key, select) {
 				$(select).html('');
-				var o = '<option value="">Select field</option>';
-				$(select).append(o);
-				$.each(list_fields, function (k, v) {
-					var o = '<option value="' + k + '">' + v + '</option>';
-					$(select).append(o);
+				$(select).append(`<option value="">${window.rcf7Data.labels.selectField}</option>`);
+				$.each(list_fields, (k, v) => {
+					$(select).append('<option value="' + k + '">' + v + '</option>');
 				});
 			});
 		}
 
 		/**
-		 * Try to parse the string
-		 * OR return already json
-		 * @param  {[type]} string [description]
-		 * @return {[type]}        [description]
+		 * Parse JSON string or return already parsed object
+		 * 
+		 * Safely attempts to parse a string as JSON and returns either
+		 * the parsed object or the original input if parsing fails.
+		 * 
+		 * @param {string|object} string - The string to parse or object to return
+		 * @return {object} - The parsed object or the original input
 		 */
 		this.maybe_parse_json = function (string) {
+			let a = '';
 			try {
 				a = JSON.parse(string);
 			} catch (e) {
@@ -420,9 +615,18 @@ var wpcf7_redirect_admin;
 			return a;
 		}
 
+		/**
+		 * Handler for retrieving MailChimp lists
+		 * 
+		 * Makes an AJAX request to get lists from MailChimp API and updates
+		 * the lists dropdown with the results.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @param {string} [list_name] - Optional list name for creating a new list
+		 */
 		this.mailchimp_get_lists_handler = function (e, list_name) {
-			var $clicked_button = $(e.currentTarget);
-			var $parent_action = $clicked_button.parents('.action-container').first();
+			const button = $(e.currentTarget);
+			const parentAction = button.parents('.action-container').first();
 			this.remove_errors();
 
 			if (!$('.wpcf7-redirect-mailchimp_api_key-fields').val()) {
@@ -430,11 +634,11 @@ var wpcf7_redirect_admin;
 				return false;
 			}
 
-			this.show_action_loader($clicked_button);
+			this.show_action_loader(button);
 
-			params = {
-				'action_id': this.get_block_action_id($clicked_button),
-				'mailchimp_api_key': $parent_action.find('.wpcf7-redirect-mailchimp_api_key-fields').val(),
+			const params = {
+				'action_id': this.get_block_action_id(button),
+				'mailchimp_api_key': parentAction.find('.wpcf7-redirect-mailchimp_api_key-fields').val(),
 				'list_name': list_name
 			};
 
@@ -442,9 +646,12 @@ var wpcf7_redirect_admin;
 		}
 
 		/**
-		 * Show ajax loader on the open action tab
-		 * @param  {[type]} $inner_element [description]
-		 * @return {[type]}                [description]
+		 * Display loading animation on an action container
+		 * 
+		 * Shows a loading spinner within the specified action container.
+		 * 
+		 * @param {jQuery} $inner_element - Element within the action container
+		 * @return {void}
 		 */
 		this.show_action_loader = function ($inner_element) {
 			var $action_wrap = $inner_element.parents('.field-wrap-test_section').first();
@@ -452,29 +659,38 @@ var wpcf7_redirect_admin;
 		}
 
 		/**
-		 * Handle toggling display view according to select field.
-		 * @param {*} e
+		 * Handle toggling display based on select field changes
+		 * 
+		 * Shows or hides elements based on the selected value of a dropdown.
+		 * 
+		 * @param {Event} e - The change event object
+		 * @return {void}
 		 */
 		this.select_toggler = function (e) {
-			var $select = $(e.currentTarget);
+			const selectElement = $(e.currentTarget);
 
-			var toggler_name = $select.data('toggler-name');
-			var selected_value = $select.val();
+			const togglerName = selectElement.data('toggler-name');
+			const selectedValue = selectElement.val();
 
-			$('.' + toggler_name).hide();
+			$('.' + togglerName).hide();
 
-			if (selected_value) {
-				$('.' + toggler_name + '_' + selected_value).show();
+			if (selectedValue) {
+				$('.' + togglerName + '_' + selectedValue).show();
 			}
 		}
 
 		/**
-		 * Handle action select change.
-		 * @param {*} e
+		 * Handle action type selection changes
+		 * 
+		 * Updates the "Add Action" button text based on whether the
+		 * selected action requires purchase.
+		 * 
+		 * @param {Event} e - The change event object
+		 * @return {void}
 		 */
 		this.select_action = function (e) {
-			var $select = $(e.currentTarget);
-			var action = $select.find(':selected').attr('data-action');
+			const selectElement = $(e.currentTarget);
+			const action = selectElement.find(':selected').attr('data-action');
 			if ('purchase' === action) {
 				$('a.wpcf7-add-new-action').text( 'Get Addon' );
 				return;
@@ -482,143 +698,224 @@ var wpcf7_redirect_admin;
 			$('a.wpcf7-add-new-action').text( 'Add Action' );
 		}
 
+		/**
+		 * Toggle visibility of elements based on checkbox state
+		 * 
+		 * Shows or hides target elements when a toggle checkbox changes state.
+		 * 
+		 * @param {Event} e - The change event object
+		 * @return {void}
+		 */
 		this.data_toggler = function (e) {
 			//prevent checkbox input from firing duplicated event but keep its original functionality
-			var $clicked_button = $(e.currentTarget);
-			var $parent_action = $clicked_button.parents('.action-container').first();
-			var toggle_element = $clicked_button.parents('[data-toggle]').data('toggle');
-			if (toggle_element) {
-				$parent_action.find(toggle_element).slideToggle('fast');
+			const button = $(e.currentTarget);
+			const parentAction = button.parents('.action-container').first();
+			const toggleTarget = button.parents('[data-toggle]').data('toggle');
+			if (toggleTarget) {
+				parentAction.find(toggleTarget).slideToggle('fast');
 			}
 		}
 
+		/**
+		 * Execute an API test call
+		 * 
+		 * Makes an AJAX request to test an API connection with current settings.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
+		 */
 		this.make_api_test_call = function (e) {
 			e.preventDefault();
-			var $clicked_button = $(e.currentTarget);
-			var $action_wrap = $clicked_button.parents('.field-wrap-test_section').first();
-			this.show_loader($clicked_button.parents('.hidden-action').first());
+			const button = $(e.currentTarget);
+			const actionWrapElement = button.parents('.field-wrap-test_section').first();
+			this.show_loader(button.parents('.hidden-action').first());
 
-			params = {
-				'action_id': $clicked_button.data('action_id'),
-				'cf7_id': $clicked_button.data('cf7_id'),
-				'rule_id': $clicked_button.data('ruleid'),
-				'data': $action_wrap.find('input').serialize()
+			const params = {
+				'action_id': button.data('action_id'),
+				'cf7_id': button.data('cf7_id'),
+				'rule_id': button.data('ruleid'),
+				'data': actionWrapElement.find('input').serialize()
 			};
 
 			this.make_ajax_call('wpcf7r_make_api_test', params, 'after_ajax_call');
 		}
 
+		/**
+		 * Remove a repeating field row
+		 * 
+		 * Deletes a row from a repeater field group.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
+		 */
 		this.remove_repeating_field = function (e) {
 			e.preventDefault();
-			var $clicked_button = $(e.currentTarget);
-			$clicked_button.parents('.qs-repeater-row').remove();
+			const button = $(e.currentTarget);
+			button.parents('.qs-repeater-row').remove();
 		}
 
+		/**
+		 * Add a new repeating field row
+		 * 
+		 * Creates a new row in a repeater field group based on a template.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
+		 */
 		this.add_repeating_field = function (e) {
 			e.preventDefault();
-			var $clicked_button = $(e.currentTarget);
-			var $parent_element = $clicked_button.parents('[data-repeater-template]');
-			var next_row_count = $parent_element.find('[data-repeater-row-count]').last().data('repeater-row-count');
-			next_row_count++;
-			var template = $parent_element.data('repeater-template');
-			template_html = this.replaceAll(template.template, 'new_row', next_row_count);
-			$parent_element.append(template_html);
-			$(document.body).trigger('added-repeating-row', [$parent_element]);
+			const button = $(e.currentTarget);
+			const parentElement = button.parents('[data-repeater-template]');
+			let newRowCount = parentElement.find('[data-repeater-row-count]').last().data('repeater-row-count');
+			newRowCount++;
+			let template;
+			const templateString = parentElement.data('repeater-template');
+			try {
+				template = JSON.parse(templateString);
+			} catch (error) {
+				console.error('Failed to parse repeater template JSON:', error, 'Template string:', templateString);
+				return;
+			}
+			const template_html = this.replaceAll(template.template, 'new_row', newRowCount);
+			parentElement.append(template_html);
+			$(document.body).trigger('added-repeating-row', [parentElement]);
 		}
 
+		/**
+		 * Migrate settings from other Contact Form 7 extension plugins
+		 * 
+		 * Imports settings from CF7 API or CF7 Redirect plugins.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
+		 */
 		this.migrate_from_cf7_api = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			this.show_loader($clicked_button.parents('.actions-list'));
-			params = {
-				'post_id': $clicked_button.data('id'),
-				'rule_id': $clicked_button.data('ruleid'),
-				'action_type': $clicked_button.data('migration-type'),
+			const button = $(e.currentTarget);
+			this.show_loader(button.parents('.actions-list'));
+			const params = {
+				'post_id': button.data('id'),
+				'rule_id': button.data('ruleid'),
+				'action_type': button.data('migration-type'),
 			};
 
 			this.make_ajax_call('wpcf7r_add_action', params, 'after_ajax_call');
 
-			$clicked_button.fadeOut(function () {
+			button.fadeOut(function () {
 				$(this).remove();
 			});
 		}
 
+		/**
+		 * Update action title in list when field value changes
+		 * 
+		 * Synchronizes the displayed action title with the input field value.
+		 * 
+		 * @param {Event} e - The keyup event object
+		 * @return {void}
+		 */
 		this.action_title_field_changed = function (e) {
 			e.preventDefault();
-			$changed_title = $(e.currentTarget);
-			action_id = this.get_block_action_id($changed_title);
-			$('.primary[data-actionid="' + action_id + '"] .column-post-title').html($changed_title.val());
+			const changedTitle = $(e.currentTarget);
+			const actionId = this.get_block_action_id(changedTitle);
+			$('.primary[data-actionid="' + actionId + '"] .column-post-title').html(changedTitle.val());
 		}
 
 		/**
-		 * Catch checkbox change event
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Handle checkbox state changes and update related elements
+		 * 
+		 * Updates toggle-dependent elements when checkbox state changes.
+		 * 
+		 * @param {Event} e - The change event object
+		 * @return {void}
 		 */
 		this.checkbox_changed = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			checkbox_on = $clicked_button.is(':checked');
-			$parent_element = $clicked_button.parents('.hidden-action');
-			$field_wrap = $clicked_button.parents('.field-wrap').first();
-			if ($clicked_button.data('toggle-label')) {
-				toggle_data = $clicked_button.data('toggle-label');
+			const button = $(e.currentTarget);
+			const checkbox_on = button.is(':checked');
+			const hiddenButtonParent = button.parents('.hidden-action');
+			if (button.data('toggle-label')) {
+				const toggle_data = button.data('toggle-label');
 				jQuery.each(toggle_data, function (css_class, toggle) {
+					let string = '';
 					if (checkbox_on) {
 						string = toggle[0];
 					} else {
 						string = toggle[1];
 					}
-					$parent_element.find(css_class).html(string);
+					hiddenButtonParent.find(css_class).html(string);
 				});
 			}
 		}
 
 		/**
-		 * Add a new action handler
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Handle adding a new action
+		 * 
+		 * Creates a new action of the selected type.
+		 * 
+		 * @param {string} contactFormId - The Contact Form ID.
+		 * @param {string} ruleId - The Rule ID.
+		 * @param {string} actionType - The action type to created.
+		 * @return {void} - Returns if validation fails
 		 */
-		this.add_new_action = function (e) {
-			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			var $action_selector = $clicked_button.siblings('.new-action-selector');
-			var action_type = $action_selector.val();
+		this.add_new_action = function (contactFormId, ruleId, actionType) {
+			const params = {
+				'post_id': contactFormId,
+				'rule_id': ruleId,
+				'action_type': actionType,
+			};
+			
 			this.remove_errors();
-			if (!action_type) {
-				this.add_error('.new-action-selector', 'Please choose an action');
-				return false;
-			}
-			if ('purchase' === $action_selector.find(':selected').data('action')) {
-				e.preventDefault();
-				var url = action_type;
-				window.open(url, '_blank');
-			} else {
-				this.show_loader($clicked_button.parents('.actions-list'));
-				params = {
-					'post_id': $clicked_button.data('id'),
-					'rule_id': $clicked_button.data('ruleid'),
-					'action_type': action_type,
-				};
-				$('.hidden-action').slideUp('fast');
-				this.make_ajax_call('wpcf7r_add_action', params, 'after_ajax_call');
-			}
+			this.show_loader( $('.wpcf7r-tab-wrap-inner .actions-list') );
+			$('.hidden-action').slideUp('fast');
+			this.make_ajax_call('wpcf7r_add_action', params, 'after_ajax_call');
 		}
 
+		/**
+		 * Remove error messages from the form
+		 * 
+		 * Clears all error messages and styling from form fields.
+		 * 
+		 * @return {void}
+		 */
 		this.remove_errors = function () {
 			$('.error-message').removeClass('error-message');
 			$('.error-label').remove();
 		}
 
+		/**
+		 * Add error message to a form field
+		 * 
+		 * Attaches an error message to the specified selector element.
+		 * 
+		 * @param {string} selector - CSS selector for the target element
+		 * @param {string} message - Error message to display
+		 * @return {void}
+		 */
 		this.add_error = function (selector, message) {
 			$(selector).addClass('error-message').after('<span class="error-label">' + message + '</span>');
 		}
 
+		/**
+		 * Display loading animation overlay
+		 * 
+		 * Shows a loading spinner overlay on the specified element.
+		 * 
+		 * @param {jQuery|Element} selector - Element to overlay with the loader
+		 * @return {void}
+		 */
 		this.show_loader = function (selector) {
 			$(selector).append('<div class="wpcf7r_loader"></div>');
 			$('.wpcf7r_loader').addClass('active');
 		}
 
+		/**
+		 * Remove loading animation overlay
+		 * 
+		 * Fades out and removes any active loading spinners.
+		 * 
+		 * @return {void}
+		 */
 		this.hide_loader = function () {
 			$('.wpcf7r_loader').fadeOut(function () {
 				$(this).remove();
@@ -626,21 +923,22 @@ var wpcf7_redirect_admin;
 		}
 
 		/**
-		 * A callback after ajax actions
-		 * @param  {[type]} e        [description]
-		 * @param  {[type]} params   [description]
-		 * @param  {[type]} response [description]
-		 * @param  {[type]} action   [description]
-		 * @return {[type]}          [description]
+		 * Callback function executed after AJAX operations complete
+		 * 
+		 * Handles various responses from different AJAX actions and updates the UI.
+		 * 
+		 * @param {Event} e - The event object
+		 * @param {Object} params - Parameters sent with the AJAX request
+		 * @param {Object} response - Response data from the server
+		 * @param {string} action - The AJAX action that was performed
+		 * @return {void}
 		 */
 		this.after_ajax_call = function (e, params, response, action) {
 			var _this = this;
-			var $action_wrap;
+			let actionWrapElement;
 
 			/**
 			 * Handle action delete request
-			 * @param  {[type]} [action== 'wpcf7r_delete_action'] [description]
-			 * @return {[type]}           [description]
 			 */
 			if ('wpcf7r_delete_action' === action) {
 				$(params).each(function (k, v) {
@@ -654,174 +952,229 @@ var wpcf7_redirect_admin;
 				});
 			}
 
-			/**
-			 * Handle action add request
-			 * @param  {[type]} [action== 'wpcf7r_add_action'] [description]
-			 * @return {[type]}           [description]
-			 */
-			if ('wpcf7r_add_action' === action || 'wpcf7r_duplicate_action' == action) {
+			if ('wpcf7r_add_action' === action || 'wpcf7r_duplicate_action' === action) {
 				$('[data-wrapid=' + params.rule_id + '] #the_list:visible').append(response.action_row);
 
-				$new_action_wrap = $('[data-wrapid=' + params.rule_id + '] #the_list > tr.action-container').last();
+				const newActionWrapElement = $('[data-wrapid=' + params.rule_id + '] #the_list > tr.action-container').last();
 
 				_this.init_select2();
 				_this.renumber_rows();
 				_this.init_colorpickers();
-				_this.init_editors($new_action_wrap);
+				_this.init_editors(newActionWrapElement);
+
+				// Open the created action.
+				Array.from( document.querySelectorAll('#the_list > tr:not(.action-container):has(.row-actions)') )
+					.at(-1)
+					?.querySelector('.row-actions .edit a')
+					?.click();
 			}
 
 			if ('wpcf7r_reset_settings' === action) {
 				window.location.reload();
 			}
-
-			/**
-			 * Make an API test
-			 * @param  {[type]} [action== 'wpcf7r_make_api_test'] [description]
-			 * @return {[type]}           [description]
-			 */
+		
 			if ('wpcf7r_make_api_test' === action) {
-				$action_wrap = $('[data-actionid=' + params.action_id + '] .field-wrap-test_section');
+				actionWrapElement = $('[data-actionid=' + params.action_id + '] .field-wrap-test_section');
 				$('span.err').remove();
 				if (typeof response.status != 'undefined' && response.status === 'failed') {
 					$.each(response.invalid_fields, function (field_key, error) {
-						$action_wrap.find('.' + field_key).append('<span class="err">' + error.reason + '</span>');
+						actionWrapElement.find('.' + field_key).append('<span class="err">' + error.reason + '</span>');
 					});
 				} else {
 					$('body').append(response.html);
 				}
 			}
-
-			/**
-			 * After getting mailchimp lists
-			 * @param  {[type]} [action== 'wpcf7r_get_mailchimp_lists'] [description]
-			 * @return {[type]}           [description]
-			 */
+		
 			if ('wpcf7r_get_mailchimp_lists' === action) {
-				$action_wrap = $('[data-actionid=' + params.action_id + ']');
-				$lists_select = $action_wrap.find('.field-wrap-mailchimp_list_id select');
-				$api_key_input = $action_wrap.find('.field-wrap-mailchimp_api_key');
-				$lists_select.html('');
+				actionWrapElement = $('[data-actionid=' + params.action_id + ']');
+				const listsSelectElement = actionWrapElement.find('.field-wrap-mailchimp_list_id select');
+				const apiKeyInput = actionWrapElement.find('.field-wrap-mailchimp_api_key');
+				listsSelectElement.html('');
 				if (typeof response.error != 'undefined' && response.error) {
-					this.add_error($api_key_input, response.error);
+					this.add_error(apiKeyInput, response.error);
 				} else {
-					$action_wrap.find('.field-wrap-mailchimp_settings')
+					actionWrapElement.find('.field-wrap-mailchimp_settings')
 						.attr('data-lists', JSON.stringify(response.lists))
 						.data('lists', JSON.stringify(response.lists));
 
 					$.each(response.lists, function (k, v) {
 						var o = '<option value="' + v.list_id + '">' + v.list_name + '</option>';
-						$lists_select.append(o);
+						listsSelectElement.append(o);
 					});
 
-					$lists_select.change();
+					listsSelectElement.change();
 				}
 			}
 			this.hide_loader();
 		}
 
+		/**
+		 * Duplicate an existing action
+		 * 
+		 * Creates a copy of an existing action with all its settings.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
+		 */
 		this.duplicate_action = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
+			const button = $(e.currentTarget);
 
-			this.show_loader($clicked_button.parents('td'));
+			this.show_loader(button.parents('td'));
 
-			params = {
-				'post_id': $clicked_button.data('id'),
+			const params = {
+				'post_id': button.data('id'),
 				'form_id': $('#post_ID').val(),
-				'rule_id': $clicked_button.data('ruleid'),
+				'rule_id': button.data('ruleid'),
 			};
 
 			this.make_ajax_call('wpcf7r_duplicate_action', params, 'after_ajax_call');
 		}
 
+		/**
+		 * Move a post (action or lead) to trash
+		 * 
+		 * Deletes an action or lead via AJAX.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
+		 */
 		this.move_post_to_trash = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			this.show_loader($clicked_button.parents('td'));
+			const button = $(e.currentTarget);
+			this.show_loader(button.parents('td'));
 
-			params = [{
-				'post_id': $clicked_button.data('id')
+			const params = [{
+				'post_id': button.data('id')
 			}];
 
 			this.make_ajax_call('wpcf7r_delete_action', params, 'ater_ajax_delete');
 		}
 
+		/**
+		 * Toggle visibility of an action's settings panel
+		 * 
+		 * Shows or hides the configuration panel for an action.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
+		 */
 		this.show_hide_action = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			$hidden_action_to_show = $clicked_button.parents('tr').next().find('.hidden-action');
-			$('.hidden-action').not($hidden_action_to_show).slideUp('fast');
-			$hidden_action_to_show.slideToggle('fast');
+			const button = $(e.currentTarget);
+			const hiddenActionToShow = button.parents('tr').next().find('.hidden-action');
+			$('.hidden-action').not(hiddenActionToShow).slideUp('fast');
+			hiddenActionToShow.slideToggle('fast');
 		}
 
+		/**
+		 * Toggle visibility of a settings tab
+		 * 
+		 * Shows or hides a tab panel when its tab header is clicked.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
+		 */
 		this.show_hide_tab = function (e) {
-			$clicked_tab = $(e.currentTarget);
-			var target = $clicked_tab.data('tab-target');
-			$clicked_tab.toggleClass('active');
+			const tabElement = $(e.currentTarget);
+			var target = tabElement.data('tab-target');
+			tabElement.toggleClass('active');
 			$('[data-tab=' + target + ']').slideToggle('fast');
 		}
 
+		/**
+		 * Hide irrelevant select options on page load
+		 * 
+		 * Triggers change events on fields to ensure proper visibility state.
+		 * 
+		 * @param {Event} [e] - Optional event object
+		 * @return {void}
+		 */
 		this.hide_select_options = function (e) {
 			$('.row-template .wpcf7r-fields').each(function () {
 				$(this).trigger('change');
 			});
 		}
 
+		/**
+		 * Show field options based on selected field type
+		 * 
+		 * Updates comparison options and value fields based on the selected field.
+		 * 
+		 * @param {Event} e - The change event object
+		 * @return {void}
+		 */
 		this.show_field_options = function (e) {
-			$changed_select = $(e.currentTarget);
-			$row = $changed_select.parents('.row-template');
+			const selectElement = $(e.currentTarget);
+			const templateRow = selectElement.parents('.row-template');
+			let elementToShow = "";
 
-			if ($changed_select.val()) {
-				$elem_to_show = $row.find('.group_row_value[data-rel=' + $changed_select.val() + ']');
-			} else {
-				$elem_to_show = "";
+			if (selectElement.val()) {
+				elementToShow = templateRow.find('.group_row_value[data-rel=' + selectElement.val() + ']');
 			}
 
-			$row.find('.group_row_value').hide();
+			templateRow.find('.group_row_value').hide();
 
-			if ($elem_to_show.length) {
-				$elem_to_show.show();
-				$row.find('.compare-options option').hide();
-				$row.find('.compare-options option[data-comparetype=select]').show();
+			if (elementToShow.length) {
+				elementToShow.show();
+				templateRow.find('.compare-options option').hide();
+				templateRow.find('.compare-options option[data-comparetype=select]').show();
 			} else {
-				$row.find('.compare-options option').show();
-				$row.find('.wpcf7-redirect-value').show();
+				templateRow.find('.compare-options option').show();
+				templateRow.find('.wpcf7-redirect-value').show();
 			}
-		}
-
-		this.set_select_value = function (e) {
-			$changed_select = $(e.currentTarget);
-			$changed_select.siblings('.wpcf7-redirect-value').val($changed_select.val());
 		}
 
 		/**
-		 * Removes a block of rules from the DOM
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Update hidden input with select field value
+		 * 
+		 * Syncs the value of a visible select with a hidden input field.
+		 * 
+		 * @param {Event} e - The change event object
+		 * @return {void}
+		 */
+		this.set_select_value = function (e) {
+			const selectElement = $(e.currentTarget);
+			selectElement.siblings('.wpcf7-redirect-value').val(selectElement.val());
+		}
+
+		/**
+		 * Remove a rule block from the DOM
+		 * 
+		 * Deletes a condition block and its associated tab.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
 		 */
 		this.remove_block = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			$clicked_button_parent = $clicked_button.parents('.block-title').first();
-			var tab_to_remove = $clicked_button_parent.data('rel');
-			$clicked_button_parent.prev().click();
-			$('.conditional-group-block[data-block-id=' + tab_to_remove + ']').remove();
-			$('.block-title[data-rel=' + tab_to_remove + ']').remove();
+			const button = $(e.currentTarget);
+			const buttonParent = button.parents('.block-title').first();
+			var tabToRemoveId = buttonParent.data('rel');
+			buttonParent.prev().click();
+			$('.conditional-group-block[data-block-id=' + tabToRemoveId + ']').remove();
+			$('.block-title[data-rel=' + tabToRemoveId + ']').remove();
 		}
 
 		/**
-		 * Adds a new block to the DOM
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Add a new condition block to the DOM
+		 * 
+		 * Creates a new condition block and its associated tab.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
+		 * 
+		 * @requires wpcfr_template
 		 */
 		this.add_new_block = function (e) {
 			this.new_block_counter++;
 
-			$clicked_button = $(e.currentTarget);
+			const button = $(e.currentTarget);
+			const action_id = this.get_block_action_id(button);
 
-			action_id = this.get_block_action_id($clicked_button);
-			html_block_template = wpcfr_template.block_html;
-			block_title_html = wpcfr_template.block_title_html;
+			let html_block_template = wpcfr_template.block_html;
+			let block_title_html = wpcfr_template.block_title_html;
+
 			html_block_template = this.replaceAll(html_block_template, 'new_block', 'block_' + this.new_block_counter);
 			html_block_template = this.replaceAll(html_block_template, 'action_id', action_id);
 			block_title_html = this.replaceAll(block_title_html, 'new_block', 'block_' + this.new_block_counter);
@@ -833,146 +1186,184 @@ var wpcf7_redirect_admin;
 		}
 
 		/**
-		 * Switch between tabs
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Switch between conditional rule tabs
+		 * 
+		 * Activates the selected tab and displays its content.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
 		 */
 		this.switch_tab = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			var tab_to_show = $clicked_button.data('rel');
-			var $tab_to_show = $('[data-block-id=' + tab_to_show + ']');
+			const button = $(e.currentTarget);
+			var tabToShowId = button.data('rel');
+			var tabToShowElement = $('[data-block-id=' + tabToShowId + ']');
 			$(this.active_tab_selector).removeClass('active');
 			$(this.tab_title_active_selector).removeClass('active');
-			$clicked_button.addClass('active');
-			$tab_to_show.addClass('active');
+			button.addClass('active');
+			tabToShowElement.addClass('active');
 		}
 
 		/**
-		 * Update block title upon save
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Save block title changes
+		 * 
+		 * Updates the block title with the user's input and exits edit mode.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
 		 */
 		this.save_block_title_edit = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			var tab_to_show = $clicked_button.data('rel');
-			var $tab_to_show = $('[data-block-id=' + tab_to_show + ']');
-			$clicked_button.siblings('input').attr('readonly', 'readonly');
-			$clicked_button.parent().removeClass('edit');
-			$tab_to_show.find(this.tab_inner_title).html($clicked_button.siblings('input').val());
+			const button = $(e.currentTarget);
+			var tabToShowId = button.data('rel');
+			var tabToShowElement = $('[data-block-id=' + tabToShowId + ']');
+			button.siblings('input').attr('readonly', 'readonly');
+			button.parent().removeClass('edit');
+			tabToShowElement.find(this.tab_inner_title).html(button.siblings('input').val());
 		}
 
 		/**
-		 * Close the text field for editing
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Cancel block title editing
+		 * 
+		 * Restores original title and exits edit mode without saving changes.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
 		 */
 		this.cancel_block_title_edit = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			var tab_to_show = $clicked_button.data('rel');
-			var $tab_to_show = $('[data-block-id=' + tab_to_show + ']');
-			$clicked_button.siblings('input').val($clicked_button.siblings('input').data('original')).attr('readonly', 'readonly');
-			$clicked_button.parent().removeClass('edit');
-			$tab_to_show.find(this.tab_inner_title).html($clicked_button.siblings('input').val());
+			const button = $(e.currentTarget);
+			var tabToShowId = button.data('rel');
+			var tabToShowElement = $('[data-block-id=' + tabToShowId + ']');
+			button.siblings('input').val(button.siblings('input').data('original')).attr('readonly', 'readonly');
+			button.parent().removeClass('edit');
+			tabToShowElement.find(this.tab_inner_title).html(button.siblings('input').val());
 		}
 
 		/**
-		 * Open block title for editing
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Enter block title edit mode
+		 * 
+		 * Makes the block title editable for the user.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
 		 */
 		this.edit_block_title = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			$clicked_button.parent().addClass('edit');
-			$clicked_button.siblings('input').removeAttr('readonly');
+			const button = $(e.currentTarget);
+			button.parent().addClass('edit');
+			button.siblings('input').removeAttr('readonly');
 		}
 
 		/**
-		 * Add a new group of fields (OR)
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Add a new group of conditional rules (OR group)
+		 * 
+		 * Creates a new group of conditions that will be evaluated together.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
 		 */
 		this.add_new_group = function (e) {
 			e.preventDefault();
 
-			$clicked_button = $(e.currentTarget);
-			var block_id = 'block_1';
-			var action_id = this.get_block_action_id($clicked_button);
-			var $rule_group = $clicked_button.parents('.conditional-group-blocks').find('.wpcfr-rule-groups');
-			this.new_group_counter = $rule_group.find('.wpcfr-rule-group').length;
+			const button = $(e.currentTarget);
+			var blockId = 'block_1';
+			var actionId = this.get_block_action_id(button);
+			var ruleGroup = button.parents('.conditional-group-blocks').find('.wpcfr-rule-groups');
+			this.new_group_counter = ruleGroup.find('.wpcfr-rule-group').length;
 			this.new_group_counter++;
-			group_html = wpcfr_template.group_html;
-			group_html = this.replaceAll(group_html, 'group-new_group', 'group-' + this.new_group_counter);
-			group_html = this.replaceAll(group_html, 'new_group', 'group-' + this.new_group_counter);
-			group_html = this.replaceAll(group_html, 'new_block', block_id);
-			group_html = this.replaceAll(group_html, 'action_id', action_id);
+			let groupHtml = wpcfr_template.group_html;
+			groupHtml = this.replaceAll(groupHtml, 'group-new_group', 'group-' + this.new_group_counter);
+			groupHtml = this.replaceAll(groupHtml, 'new_group', 'group-' + this.new_group_counter);
+			groupHtml = this.replaceAll(groupHtml, 'new_block', blockId);
+			groupHtml = this.replaceAll(groupHtml, 'action_id', actionId);
 
-			$rule_group.append(group_html);
+			ruleGroup.append(groupHtml);
 		}
 
 		/**
-		 * Remove an and row from the dom
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Remove a condition row from a rule group
+		 * 
+		 * Removes an AND condition from a group or the entire group if it's the last condition.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
 		 */
 		this.remove_and_row = function (e) {
 			e.preventDefault();
-			$clicked_button = $(e.currentTarget);
-			if ($clicked_button.parents(this.rule_group_selector).find('.row-template').length == 1) {
-				$clicked_button.parents(this.rule_group_selector).remove();
+			const button = $(e.currentTarget);
+			if (button.parents(this.rule_group_selector).find('.row-template').length == 1) {
+				button.parents(this.rule_group_selector).remove();
 			} else {
-				$clicked_button.parents(this.row_template_selector).remove();
+				button.parents(this.row_template_selector).remove();
 			}
 		}
 
-		this.get_block_action_id = function ($inner_item) {
-			return $inner_item.parents('[data-actionid]').data('actionid');
+		/**
+		 * Get the action ID from an element within an action container
+		 * 
+		 * Finds the parent action container and returns its action ID.
+		 * 
+		 * @param {jQuery} innerItemElement - Element within an action container
+		 * @return {string|number} The action ID
+		 */
+		this.get_block_action_id = function (innerItemElement) {
+			return innerItemElement.parents('[data-actionid]').data('actionid');
 		}
 
 		/**
-		 * Add an and row to the dom
-		 * @param  {[type]} e [description]
-		 * @return {[type]}   [description]
+		 * Add a new condition row (AND condition)
+		 * 
+		 * Creates a new row for defining an additional condition within a group.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
 		 */
 		this.add_and_row = function (e) {
 			e.preventDefault();
 
-			$clicked_button = $(e.currentTarget);
-			action_id = this.get_block_action_id($clicked_button);
-			block_id = 'block_1';
-			group_id = $clicked_button.parents('[data-group-id]').first().data('group-id');
+			const button = $(e.currentTarget);
+			const action_id = this.get_block_action_id(button);
+			const block_id = 'block_1';
+			const group_id = button.parents('[data-group-id]').first().data('group-id');
 
 			if (!this.new_row_counter) {
-				$repeater_block = $clicked_button.parents('.repeater-table');
-				this.new_row_counter = $repeater_block.find('.row-template').length;
+				const repeaterBlock = button.parents('.repeater-table');
+				this.new_row_counter = repeaterBlock.find('.row-template').length;
 			}
 
 			this.new_row_counter++;
 
-			$(wpcfr_template.row_html).find(this.add_and_selector).remove();
+			let rowHtml = wpcfr_template.row_html;
+			rowHtml = this.replaceAll(rowHtml, 'new_block', block_id);
+			rowHtml = this.replaceAll(rowHtml, 'new_group', group_id);
+			rowHtml = this.replaceAll(rowHtml, 'new_row', 'row-' + this.new_row_counter);
+			rowHtml = this.replaceAll(rowHtml, 'action_id', action_id);
 
-			row_html = wpcfr_template.row_html;
-			row_html = this.replaceAll(row_html, 'new_block', block_id);
-			row_html = this.replaceAll(row_html, 'new_group', group_id);
-			row_html = this.replaceAll(row_html, 'new_row', 'row-' + this.new_row_counter);
-			row_html = this.replaceAll(row_html, 'action_id', action_id);
-
-			$clicked_button.parents('table').first().find('tbody').append(row_html);
+			button.parents('table').first().find('tbody').append(rowHtml);
 		}
 
 		/**
-		 * Replace all instances of a string
-		 * @param  {[type]} str     [description]
-		 * @param  {[type]} find    [description]
-		 * @param  {[type]} replace [description]
-		 * @return {[type]}         [description]
+		 * Replace all occurrences of a string
+		 * 
+		 * Global string replacement utility function.
+		 * 
+		 * @param {string} str - The input string
+		 * @param {string} find - The substring to find
+		 * @param {string} replace - The replacement string
+		 * @return {string} The modified string
 		 */
 		this.replaceAll = function (str, find, replace) {
 			return str.replace(new RegExp(find, 'g'), replace);
 		}
+
+		/**
+		 * Initialize conditional field visibility based on saved values
+		 * 
+		 * Sets up initial state for fields with conditional visibility.
+		 * 
+		 * @return {void}
+		 */
 		this.admin_fields_init = function () {
 			$('.field-wrap input[type=checkbox],.field-wrap select').each(function () {
 				if ($(this).is(":checked")) {
@@ -981,14 +1372,17 @@ var wpcf7_redirect_admin;
 			});
 			$('.wpcf7-redirect-after-sent-script').each(function () {
 				if ($(this).val()) {
-					$(this).siblings('.field-warning-alert').removeClass('field-notice-hidden');
+					$(this).siblings('.field-notice-danger').removeClass('field-notice-hidden');
 				}
 			});
 		}
 
 		/**
-		 * Show/hide fields according to user selections
-		 * @return {[type]} [description]
+		 * Set up event handlers for admin field visibility and warnings
+		 * 
+		 * Initializes UI behaviors for field dependencies and alert messages.
+		 * 
+		 * @return {void}
 		 */
 		this.admin_field_handlers = function () {
 			this.admin_fields_init();
@@ -1003,13 +1397,13 @@ var wpcf7_redirect_admin;
 			// field - after sent script
 			$(document.body).on('keyup', '.wpcf7-redirect-after-sent-script', function (event) {
 				if ($(this).val().length != 0) {
-					$(this).siblings('.field-warning-alert').removeClass('field-notice-hidden');
+					$(this).siblings('.field-notice-danger').removeClass('field-notice-hidden');
 				} else {
-					$(this).siblings('.field-warning-alert').addClass('field-notice-hidden');
+					$(this).siblings('.field-notice-danger').addClass('field-notice-hidden');
 				}
 			});
 			$(document.body).on('change', '.checkbox-radio-1', function () {
-				var checked = $(this).is(':checked');
+				const checked = $(this).is(':checked');
 				$('.checkbox-radio-1').prop('checked', false);
 				if (checked) {
 					$(this).prop('checked', true);
@@ -1017,6 +1411,14 @@ var wpcf7_redirect_admin;
 			});
 		}
 
+		/**
+		 * Reset all plugin settings to defaults
+		 * 
+		 * Performs a complete reset of all plugin configuration.
+		 * 
+		 * @param {Event} e - The click event object
+		 * @return {void}
+		 */
 		this.reset_all_settings = function (e) {
 			e.preventDefault();
 			var action = 'wpcf7r_reset_settings';
@@ -1028,13 +1430,15 @@ var wpcf7_redirect_admin;
 		}
 
 		/**
-		 * Basic function to make admin ajax calls
-		 * @param  {[type]} params [description]
-		 * @return {[type]}        [description]
+		 * Make an AJAX call to the WordPress admin-ajax endpoint
+		 * 
+		 * Generic function for making admin AJAX requests with proper nonce security.
+		 * 
+		 * @param {string} action - The AJAX action to perform
+		 * @param {Object} params - Parameters to send with the request
+		 * @return {void}
 		 */
 		this.make_ajax_call = function (action, params) {
-			var _this = this;
-
 			jQuery.ajax({
 				type: "post",
 				dataType: "json",
@@ -1052,14 +1456,171 @@ var wpcf7_redirect_admin;
 		this.init();
 	}
 
+	/**
+	 * Connect the toggle status in the row with action form input.
+	 * 
+	 * @param {JQuery.Event} event The toggle status event.
+	 * @returns 
+	 */
+	function toggleActionStatus( event ) {
+		const { actionId } = event.target.dataset;
+		const actionStatusInput = document.querySelector(`.field-wrap-action_status input[type="checkbox"][name*="[${actionId}]"]`);
+		
+		if ( ! actionStatusInput ) {
+			return;
+		}
+
+		actionStatusInput.checked = event.target.checked;
+	}
+
+	/**
+	 * Init the dropdown for addin a new Action.
+	 */
+	function initAddActionsDropdown() {
+		const addActionBtn = document.getElementById('rcf7-add-action-btn');
+		const actionDropdown = document.getElementById('rcf7-action-dropdown');
+		const actionItems = document.querySelectorAll('.rcf7-dropdown__action-item');
+		const searchInput = document.querySelector('.rcf7-dropdown__search-input');
+
+		if ( ! addActionBtn || ! actionDropdown ) {
+			return;
+		}
+
+		const contactFormId = addActionBtn.dataset.id;
+		const ruleId = addActionBtn.dataset.ruleid;
+		
+		addActionBtn.setAttribute('aria-expanded', 'false');
+		addActionBtn.setAttribute('aria-controls', 'actionDropdown');
+
+		// Function to position the dropdown based on available space
+		const positionDropdown = () => {
+			// We need to temporarily show it to measure its dimensions
+			const isActive = actionDropdown?.classList.contains('active');
+			if (!isActive) {
+				actionDropdown?.classList.add('active');
+			}
+			
+			// Remove any existing position classes
+			actionDropdown?.classList.remove('dropdown--top', 'dropdown--bottom');
+			
+			const buttonRect = addActionBtn.getBoundingClientRect();
+			const dropdownHeight = actionDropdown.offsetHeight;
+			const windowHeight = window.innerHeight;
+			const spaceBelow = windowHeight - buttonRect.bottom;
+			const spaceAbove = buttonRect.top;
+			
+			// Reset any previous positioning
+			actionDropdown.style.bottom = '';
+			actionDropdown.style.top = '';
+			
+			if (spaceBelow >= dropdownHeight || spaceBelow > spaceAbove) {
+				actionDropdown.style.top = (buttonRect.height + 10) + 'px';
+				actionDropdown.classList.add('dropdown--bottom');
+			} else {
+				actionDropdown.style.bottom = (buttonRect.height + 10) + 'px';
+				actionDropdown.classList.add('dropdown--top');
+			}
+			
+			// Hide it again if it wasn't active before
+			if (!isActive) {
+				actionDropdown.classList.remove('active');
+			}
+		}
+		
+		// Toggle dropdown visibility
+		addActionBtn.addEventListener('click', function(e) {
+			e.stopPropagation();
+
+			const isExpanded = addActionBtn.getAttribute('aria-expanded') === 'true';
+			addActionBtn.setAttribute('aria-expanded', !isExpanded);
+
+			if (actionDropdown.classList.contains('active')) {
+				actionDropdown.classList.remove('active');
+			} else {
+				actionDropdown.classList.add('active');
+				positionDropdown();
+				setTimeout(() => searchInput?.focus(), 100);
+			}
+		});
+		
+		window.addEventListener('resize', function() {
+			if (actionDropdown.classList.contains('active')) {
+				positionDropdown();
+			}
+		});
+		
+		// Close dropdown when clicking outside
+		document.addEventListener('click', function(event) {
+			if ( ! event.target ) {
+				return;
+			}
+
+			if ( !actionDropdown.contains(event.target) && !addActionBtn.contains(event.target) ) {
+				actionDropdown.classList.remove('active');
+				addActionBtn.setAttribute('aria-expanded', 'false');
+			}
+		});
+		
+		// Handle action selection
+		actionItems.forEach(function(item) {
+			if (item.hasAttribute('disabled')) {
+				return;
+			}
+
+			item.addEventListener('click', function(event) {
+				const actionName = event.target?.getAttribute('data-action');
+				window.wpcf7_redirect_admin.add_new_action( contactFormId, ruleId, actionName );
+				actionDropdown.classList.remove('active');
+			});
+		});
+		
+		// Search functionality
+		searchInput?.addEventListener('input', function() {
+			const searchTerm = this.value.toLowerCase().trim();
+			document.querySelectorAll('.rcf7-dropdown__category-section').forEach(function(category) {
+				let visibleInCategory = false;
+				
+				category.querySelectorAll('.rcf7-dropdown__action-item').forEach(function(item) {
+					const actionName = item.textContent.trim().toLowerCase();
+					
+					if (actionName.includes(searchTerm) || searchTerm === '') {
+						item.style.display = 'flex';
+						visibleInCategory = true;
+					} else {
+						item.style.display = 'none';
+					}
+				});
+				
+				// Show/hide category headers based on whether they have visible items
+				const categoryHeader = category.querySelector('.rcf7-dropdown__category-header');
+				categoryHeader.style.display = visibleInCategory ? 'flex' : 'none';
+			});
+			
+			positionDropdown();
+		});
+	}
+
 	$(document).ready(function () {
 		//init the class functionality
 		wpcf7_redirect_admin = new Wpcf7_redirect_admin();
+		window.wpcf7_redirect_admin = wpcf7_redirect_admin;
 
 		$(document.body).trigger('wpcf7r-loaded', wpcf7_redirect_admin);
+
+		initAddActionsDropdown();
+
+		// Auto-open the Actions tab if URL contains wpcf7r-tab.
+		if (window.location.href.indexOf('wpcf7r-tab=true') !== -1) {
+			// Use a small timeout to ensure DOM is ready
+			const tabElement = $('#redirect-panel-tab');
+			if (tabElement.length) {
+				tabElement.trigger('click');
+			}
+		}
 	});
 })(jQuery);
 
 function wpcf_get_nonce() {
 	return jQuery('[name=actions-nonce]').val() ? jQuery('[name=actions-nonce]').val() : jQuery('[name=_wpcf7nonce]').val();
 }
+

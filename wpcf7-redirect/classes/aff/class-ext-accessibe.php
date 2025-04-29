@@ -1,16 +1,42 @@
 <?php
 /**
- * Accesibe Extension Class
+ * AccessiBe Extension
  *
- * @category Ext_Accessibe
- * @package  Ext_Accessibe
- * @author   Author <info@querysol.com>
- * @license  https://opensource.org/licenses/MIT MIT License
- * @link     http://querysol.com/
+ * This file contains the `accessiBe` extension class that handles accessibility widget integration.
+ *
+ * PHP version 5.6 or greater
+ *
+ * @category  Extension
+ * @package   Redirection_For_Contact_Form_7
+ * @author    Author <info@querysol.com>
+ * @license   https://opensource.org/licenses/MIT MIT License
+ * @link      http://querysol.com/
+ * @since     1.0.0
+ */
+
+/**
+ * AccessiBe Extension Class
  */
 class Ext_Accessibe extends WPCF7R_Action {
-	public $ver       = '1.0';
-	private $api_url  = ACCESSIBE_API_URI;
+	/**
+	 * Version number of the extension
+	 *
+	 * @var string
+	 */
+	public $ver = '1.0';
+
+	/**
+	 * API URL for `accessiBe` service
+	 *
+	 * @var string
+	 */
+	private $api_url = ACCESSIBE_API_URI;
+
+	/**
+	 * Extension name identifier
+	 *
+	 * @var string
+	 */
 	private $ext_name = 'accessibe';
 
 	/**
@@ -59,7 +85,7 @@ class Ext_Accessibe extends WPCF7R_Action {
 			if ( is_wp_error( $response ) ) {
 				WPCF7r_Utils::add_admin_notice( 'alert', $response->get_error_message() );
 			} else {
-				WPCF7r_Utils::add_admin_notice( 'notice', __( 'Successfully activated' ) );
+				WPCF7r_Utils::add_admin_notice( 'notice', __( 'Successfully activated', 'wpcf7-redirect' ) );
 			}
 		}
 		if ( isset( $_GET['deactivate'] ) && qs_get_plugin_display_name() === $_GET['deactivate'] ) {
@@ -88,26 +114,32 @@ class Ext_Accessibe extends WPCF7R_Action {
 
 	/**
 	 * Get this extension settings page url
+	 *
+	 * @return string The settings page URL
 	 */
 	public function get_settings_url() {
-		return admin_url( '/admin.php?page=' . qs_get_plugin_display_name() );
+		return admin_url( 'admin.php?page=' . qs_get_plugin_display_name() );
 	}
 
 	/**
 	 * The link will reset the scan data to allow a new scan to process
+	 *
+	 * @return string URL to reset scan data
 	 */
 	public function get_scan_link() {
 		$url = $this->get_settings_url();
-		$url = add_query_arg(
+		return add_query_arg(
 			array(
 				'scan' => true,
-			)
+			),
+			$url
 		);
-		return $url;
 	}
 
 	/**
-	 * Check if scan was commited and saved
+	 * Check if scan was committed and saved
+	 *
+	 * @return mixed Option value or false if option doesn't exist
 	 */
 	public function get_scan_results() {
 		return get_option( 'accesibe_scan_results' );
@@ -115,50 +147,59 @@ class Ext_Accessibe extends WPCF7R_Action {
 
 	/**
 	 * Get the widget settings
+	 *
+	 * @return array|false The widget settings or false if not set
 	 */
 	public function get_widget_settings() {
 		$key = $this->get_widget_option_key();
-		return get_option( $key );
+		return get_option( $key, array() );
 	}
 
 	/**
 	 * Check if the plugin is active
+	 *
+	 * @return boolean True if active, false otherwise
 	 */
 	public function is_active() {
 		$settings = $this->get_settings();
-		return $settings ? true : false;
+		return ! empty( $settings );
 	}
 
 	/**
 	 * Check if the current screen is a registration form
-	 * @return boolean
+	 *
+	 * @return boolean True if registration form, false otherwise
 	 */
 	public function is_registration_form() {
 		return ! $this->is_scan() && ! $this->is_active();
 	}
 
 	/**
-	 * Check if the plugin is active
+	 * Check if scanning is needed
 	 *
-	 * @return boolean
+	 * @return boolean True if scanning, false otherwise
 	 */
 	public function is_scan() {
 		$results = $this->get_scan_results();
-		return $results ? false : true;
+		return empty( $results );
 	}
 
 	/**
 	 * Set a flag that a scan was completed
+	 *
+	 * @return boolean True if option was updated, false otherwise
 	 */
 	public function mark_scan_completed() {
-		update_option( 'accesibe_scan_results', true );
+		return update_option( 'accesibe_scan_results', true );
 	}
 
 	/**
 	 * Allow the user to rescan the website
+	 *
+	 * @return boolean True if option was deleted, false otherwise
 	 */
 	public function reset_scan_results() {
-		delete_option( 'accesibe_scan_results' );
+		return delete_option( 'accesibe_scan_results' );
 	}
 
 	/**
@@ -183,6 +224,9 @@ class Ext_Accessibe extends WPCF7R_Action {
 
 	/**
 	 * Get the value of a specific field
+	 *
+	 * @param string $field The field name to retrieve.
+	 * @return string The field value or empty string.
 	 */
 	public function get_field_value( $field ) {
 		if ( $this->accesibe_widget_options ) {
@@ -193,7 +237,8 @@ class Ext_Accessibe extends WPCF7R_Action {
 	/**
 	 * Get the template to display on the admin field
 	 *
-	 * @param $template
+	 * @param string $template The template file name.
+	 * @return void
 	 */
 	public function get_settings_template( $template ) {
 		$name   = $this->get_name();
@@ -204,7 +249,8 @@ class Ext_Accessibe extends WPCF7R_Action {
 	/**
 	 * General function to retrieve meta
 	 *
-	 * @param $key
+	 * @param string $key The meta key to retrieve.
+	 * @return string The meta value or empty string.
 	 */
 	public function get( $key ) {
 		return isset( $this->accesibe_widget_options[ $key ] ) ? $this->accesibe_widget_options[ $key ] : '';
@@ -222,253 +268,256 @@ class Ext_Accessibe extends WPCF7R_Action {
 	 */
 	public function get_accesibe_settings() {
 		$this->html = new WPCF7R_html( '' );
-		include( WPCF7_PRO_REDIRECT_TEMPLATE_PATH . 'settings.php' );
+		include WPCF7_PRO_REDIRECT_TEMPLATE_PATH . 'settings.php';
 	}
 
 	/**
-	* Get the fields relevant for this action
-	*/
+	 * Get the fields relevant for this action
+	 */
 	public function get_action_fields() {
-		return
+		return array(
 			array(
-				array(
-					'name'        => 'hideMobile',
-					'type'        => 'checkbox',
-					'label'       => __( 'Hide On Mobile', 'wpcf7-redirect' ),
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'hideMobile' ),
+				'name'        => 'hideMobile',
+				'type'        => 'checkbox',
+				'label'       => __( 'Hide On Mobile', 'wpcf7-redirect' ),
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'hideMobile' ),
+			),
+			array(
+				'name'        => 'hideTrigger',
+				'type'        => 'checkbox',
+				'label'       => __( 'Hide Trigger', 'wpcf7-redirect' ),
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'hideTrigger' ),
+			),
+			array(
+				'name'        => 'leadColor',
+				'type'        => 'text',
+				'input_class' => 'colorpicker',
+				'label'       => __( 'Main Color', 'wpcf7-redirect' ),
+				'class'       => 'qs-col qs-col-6',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'leadColor' ) ? $this->get( 'leadColor' ) : '#146FF8',
+			),
+			array(
+				'name'        => 'triggerColor',
+				'type'        => 'text',
+				'input_class' => 'colorpicker',
+				'label'       => __( 'Trigger Color', 'wpcf7-redirect' ),
+				'class'       => 'qs-col qs-col-6',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'triggerColor' ) ? $this->get( 'triggerColor' ) : '#146FF8',
+			),
+			array(
+				'name'        => 'triggerIcon',
+				'type'        => 'media',
+				'label'       => __( 'Trigger Icon', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'triggerIcon' ) ? $this->get( 'triggerIcon' ) : 'default',
+			),
+			array(
+				'name'        => 'triggerSize',
+				'type'        => 'select',
+				'label'       => __( 'Trigger Size', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'options'     => array(
+					'small'  => __( 'Small', 'wpcf7-redirect' ),
+					'medium' => __( 'Medium', 'wpcf7-redirect' ),
+					'large'  => __( 'Large', 'wpcf7-redirect' ),
 				),
-				array(
-					'name'        => 'hideTrigger',
-					'type'        => 'checkbox',
-					'label'       => __( 'Hide Trigger', 'wpcf7-redirect' ),
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'hideTrigger' ),
+				'value'       => $this->get( 'triggerSize' ) ? $this->get( 'triggerSize' ) : 'medium',
+			),
+			array(
+				'name'        => 'statementLink',
+				'type'        => 'url',
+				'label'       => __( 'Link To Statment', 'wpcf7-redirect' ),
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'statementLink' ),
+			),
+			array(
+				'name'        => 'feedbackLink',
+				'type'        => 'url',
+				'label'       => __( 'Link To Feedback', 'wpcf7-redirect' ),
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'feedbackLink' ),
+			),
+			array(
+				'name'        => 'language',
+				'type'        => 'select',
+				'label'       => __( 'Widget Language', 'wpcf7-redirect' ),
+				'class'       => 'select2-field',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'options'     => $this->get_available_languages(),
+				'value'       => $this->get( 'language' ),
+			),
+			array(
+				'name'        => 'position',
+				'type'        => 'select',
+				'label'       => __( 'Widget Position', 'wpcf7-redirect' ),
+				'class'       => '',
+				'options'     => array(
+					'right' => __( 'Right', 'wpcf7-redirect' ),
+					'left'  => __( 'Left', 'wpcf7-redirect' ),
 				),
-				array(
-					'name'        => 'leadColor',
-					'type'        => 'text',
-					'input_class' => 'colorpicker',
-					'label'       => __( 'Main Color', 'wpcf7-redirect' ),
-					'class'       => 'qs-col qs-col-6',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'leadColor' ) ? $this->get( 'leadColor' ) : '#146FF8',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'position' ),
+			),
+			array(
+				'name'        => 'triggerRadius',
+				'type'        => 'number',
+				'label'       => __( 'Trigger Border Radius (%)', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'triggerRadius' ) ? $this->get( 'triggerRadius' ) : '50%',
+			),
+			array(
+				'name'        => 'triggerPositionX',
+				'type'        => 'select',
+				'label'       => __( 'Trigger Position (X)', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'options'     => array(
+					'right' => __( 'Right', 'wpcf7-redirect' ),
+					'left'  => __( 'Left', 'wpcf7-redirect' ),
 				),
-				array(
-					'name'        => 'triggerColor',
-					'type'        => 'text',
-					'input_class' => 'colorpicker',
-					'label'       => __( 'Trigger Color', 'wpcf7-redirect' ),
-					'class'       => 'qs-col qs-col-6',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'triggerColor' ) ? $this->get( 'triggerColor' ) : '#146FF8',
+				'value'       => $this->get( 'triggerPositionX' ) ? $this->get( 'triggerPositionX' ) : 'left',
+			),
+			array(
+				'name'        => 'triggerOffsetX',
+				'type'        => 'number',
+				'label'       => __( 'Trigger Offset X (Pixels)', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'triggerOffsetX' ) ? $this->get( 'triggerOffsetX' ) : 0,
+			),
+			array(
+				'name'        => 'triggerPositionY',
+				'type'        => 'select',
+				'label'       => __( 'Trigger Position (X)', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'options'     => array(
+					'top'    => __( 'Top', 'wpcf7-redirect' ),
+					'bottom' => __( 'Bottom', 'wpcf7-redirect' ),
 				),
-				array(
-					'name'        => 'triggerIcon',
-					'type'        => 'media',
-					'label'       => __( 'Trigger Icon', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'triggerIcon' ) ? $this->get( 'triggerIcon' ) : 'default',
+				'value'       => $this->get( 'triggerPositionY' ) ? $this->get( 'triggerPositionY' ) : 'bottom',
+			),
+			array(
+				'name'        => 'triggerOffsetY',
+				'type'        => 'number',
+				'label'       => __( 'Trigger Offset Y (Pixels)', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'triggerOffsetY' ) ? $this->get( 'triggerOffsetY' ) : 0,
+			),
+			array(
+				'name'        => 'triggerSizeMobile',
+				'type'        => 'select',
+				'label'       => __( 'Trigger Size Mobile', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'options'     => array(
+					'small'  => __( 'Small', 'wpcf7-redirect' ),
+					'medium' => __( 'Medium', 'wpcf7-redirect' ),
+					'large'  => __( 'Large', 'wpcf7-redirect' ),
 				),
-				array(
-					'name'        => 'triggerSize',
-					'type'        => 'select',
-					'label'       => __( 'Trigger Size', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'options'     => array(
-						'small'  => __( 'Small' ),
-						'medium' => __( 'Medium' ),
-						'large'  => __( 'Large' ),
-					),
-					'value'       => $this->get( 'triggerSize' ) ? $this->get( 'triggerSize' ) : 'medium',
+				'value'       => $this->get( 'triggerSizeMobile' ) ? $this->get( 'triggerSizeMobile' ) : 'medium',
+			),
+			array(
+				'name'        => 'triggerPositionXMobile',
+				'type'        => 'select',
+				'label'       => __( 'Trigger Position (X) Mobile', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'options'     => array(
+					'right' => __( 'Right', 'wpcf7-redirect' ),
+					'left'  => __( 'Left', 'wpcf7-redirect' ),
 				),
-				array(
-					'name'        => 'statementLink',
-					'type'        => 'url',
-					'label'       => __( 'Link To Statment', 'wpcf7-redirect' ),
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'statementLink' ),
+				'value'       => $this->get( 'triggerPositionXMobile' ) ? $this->get( 'triggerPositionXMobile' ) : 'left',
+			),
+			array(
+				'name'        => 'triggerOffsetXMobile',
+				'type'        => 'number',
+				'label'       => __( 'Trigger Offset X (Pixels) Mobile', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'triggerOffsetXMobile' ) ? $this->get( 'triggerOffsetXMobile' ) : 0,
+			),
+			array(
+				'name'        => 'triggerPositionYMobile',
+				'type'        => 'select',
+				'label'       => __( 'Trigger Position (X) Mobile', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'options'     => array(
+					'top'    => __( 'Top', 'wpcf7-redirect' ),
+					'bottom' => __( 'Bottom', 'wpcf7-redirect' ),
 				),
-				array(
-					'name'        => 'feedbackLink',
-					'type'        => 'url',
-					'label'       => __( 'Link To Feedback', 'wpcf7-redirect' ),
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'feedbackLink' ),
-				),
-				array(
-					'name'        => 'language',
-					'type'        => 'select',
-					'label'       => __( 'Widget Language', 'wpcf7-redirect' ),
-					'class'       => 'select2-field',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'options'     => $this->get_available_languages(),
-					'value'       => $this->get( 'language' ),
-				),
-				array(
-					'name'        => 'position',
-					'type'        => 'select',
-					'label'       => __( 'Widget Position', 'wpcf7-redirect' ),
-					'class'       => '',
-					'options'     => array(
-						'right' => __( 'Right' ),
-						'left'  => __( 'Left' ),
-					),
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'position' ),
-				),
-				array(
-					'name'        => 'triggerRadius',
-					'type'        => 'number',
-					'label'       => __( 'Trigger Border Radius (%)', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'triggerRadius' ) ? $this->get( 'triggerRadius' ) : '50%',
-				),
-				array(
-					'name'        => 'triggerPositionX',
-					'type'        => 'select',
-					'label'       => __( 'Trigger Position (X)', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'options'     => array(
-						'right' => __( 'Right' ),
-						'left'  => __( 'Left' ),
-					),
-					'value'       => $this->get( 'triggerPositionX' ) ? $this->get( 'triggerPositionX' ) : 'left',
-				),
-				array(
-					'name'        => 'triggerOffsetX',
-					'type'        => 'number',
-					'label'       => __( 'Trigger Offset X (Pixels)', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'triggerOffsetX' ) ? $this->get( 'triggerOffsetX' ) : 0,
-				),
-				array(
-					'name'        => 'triggerPositionY',
-					'type'        => 'select',
-					'label'       => __( 'Trigger Position (X)', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'options'     => array(
-						'top'    => __( 'Top' ),
-						'bottom' => __( 'Bottom' ),
-					),
-					'value'       => $this->get( 'triggerPositionY' ) ? $this->get( 'triggerPositionY' ) : 'bottom',
-				),
-				array(
-					'name'        => 'triggerOffsetY',
-					'type'        => 'number',
-					'label'       => __( 'Trigger Offset Y (Pixels)', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'triggerOffsetY' ) ? $this->get( 'triggerOffsetY' ) : 0,
-				),
-				array(
-					'name'        => 'triggerSizeMobile',
-					'type'        => 'select',
-					'label'       => __( 'Trigger Size Mobile', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'options'     => array(
-						'small'  => __( 'Small' ),
-						'medium' => __( 'Medium' ),
-						'large'  => __( 'Large' ),
-					),
-					'value'       => $this->get( 'triggerSizeMobile' ) ? $this->get( 'triggerSizeMobile' ) : 'medium',
-				),
-				array(
-					'name'        => 'triggerPositionXMobile',
-					'type'        => 'select',
-					'label'       => __( 'Trigger Position (X) Mobile', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'options'     => array(
-						'right' => __( 'Right' ),
-						'left'  => __( 'Left' ),
-					),
-					'value'       => $this->get( 'triggerPositionXMobile' ) ? $this->get( 'triggerPositionXMobile' ) : 'left',
-				),
-				array(
-					'name'        => 'triggerOffsetXMobile',
-					'type'        => 'number',
-					'label'       => __( 'Trigger Offset X (Pixels) Mobile', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'triggerOffsetXMobile' ) ? $this->get( 'triggerOffsetXMobile' ) : 0,
-				),
-				array(
-					'name'        => 'triggerPositionYMobile',
-					'type'        => 'select',
-					'label'       => __( 'Trigger Position (X) Mobile', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'options'     => array(
-						'top'    => __( 'Top' ),
-						'bottom' => __( 'Bottom' ),
-					),
-					'value'       => $this->get( 'triggerPositionYMobile' ) ? $this->get( 'triggerPositionYMobile' ) : 'bottom',
-				),
-				array(
-					'name'        => 'triggerOffsetYMobile',
-					'type'        => 'number',
-					'label'       => __( 'Trigger Offset Y (Pixels)', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'triggerOffsetYMobile' ) ? $this->get( 'triggerOffsetYMobile' ) : 0,
-				),
-				array(
-					'name'        => 'triggerRadiusMobile',
-					'type'        => 'number',
-					'label'       => __( 'Trigger Border Radius (%) Mobile', 'wpcf7-redirect' ),
-					'class'       => '',
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'triggerRadiusMobile' ) ? $this->get( 'triggerRadiusMobile' ) : '50%',
-				),
-				array(
-					'name'        => 'footerHtml',
-					'type'        => 'editor',
-					'label'       => __( 'Footer Html', 'wpcf7-redirect' ),
-					'sub_title'   => '',
-					'placeholder' => '',
-					'value'       => $this->get( 'footerHtml' ),
-				),
-			);
+				'value'       => $this->get( 'triggerPositionYMobile' ) ? $this->get( 'triggerPositionYMobile' ) : 'bottom',
+			),
+			array(
+				'name'        => 'triggerOffsetYMobile',
+				'type'        => 'number',
+				'label'       => __( 'Trigger Offset Y (Pixels)', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'triggerOffsetYMobile' ) ? $this->get( 'triggerOffsetYMobile' ) : 0,
+			),
+			array(
+				'name'        => 'triggerRadiusMobile',
+				'type'        => 'number',
+				'label'       => __( 'Trigger Border Radius (%) Mobile', 'wpcf7-redirect' ),
+				'class'       => '',
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'triggerRadiusMobile' ) ? $this->get( 'triggerRadiusMobile' ) : '50%',
+			),
+			array(
+				'name'        => 'footerHtml',
+				'type'        => 'editor',
+				'label'       => __( 'Footer Html', 'wpcf7-redirect' ),
+				'sub_title'   => '',
+				'placeholder' => '',
+				'value'       => $this->get( 'footerHtml' ),
+			),
+		);
 	}
 
 	/**
-	 * Get a list of available widget languages
+	 * Get a list of available widget languages.
+	 *
+	 * @return array List of available languages from Contact Form 7.
 	 */
 	public function get_available_languages() {
 		return wpcf7_get_languages_list();
 	}
 
 	/**
-	 * Display accesibe menu
+	 * Display accessible menu in the admin interface.
+	 *
+	 * @return void
 	 */
 	public function acctivate_acccesbe_menu() {
 		update_option( 'show_accessibie_menu', true );
@@ -476,18 +525,30 @@ class Ext_Accessibe extends WPCF7R_Action {
 	}
 
 	/**
-	 * Activate the extension
+	 * Activates the `accessiBe` extension.
+	 *
+	 * This method processes user registration data for AccessiBe integration,
+	 * makes a remote API call to register the domain, and stores activation information.
+	 *
+	 * @return WP_Error|object Returns API response object.
+	 *
+	 * @see https://accessibe.com/support/installation/how-can-i-add-and-manage-subscriptions-using-api-or-csv-files
 	 */
 	public function activate() {
-		$args      = array(
+		if ( ! isset( $_POST['email'] ) || ! isset( $_POST['fullname'] ) || ! isset( $_POST['password'] ) || ! isset( $_SERVER['SERVER_ADDR'] ) ) {
+			return new WP_Error( 'missing_data', __( 'Required data is missing', 'wpcf7-redirect' ) );
+		}
+
+		$args = array(
 			'email'          => sanitize_email( $_POST['email'] ),
 			'name'           => sanitize_text_field( $_POST['fullname'] ),
 			'password'       => sanitize_text_field( $_POST['password'] ),
 			'domain'         => str_replace( array( 'http://', 'https://' ), '', home_url() ),
-			'ip_address'     => $_SERVER['SERVER_ADDR'],
+			'ip_address'     => sanitize_text_field( $_SERVER['SERVER_ADDR'] ),
 			'contactCountry' => isset( $_POST['user-country'] ) ? sanitize_text_field( $_POST['user-country'] ) : '',
 			'contactPhone'   => isset( $_POST['phone-number'] ) ? sanitize_text_field( $_POST['phone-number'] ) : '',
 		);
+
 		$post_args = array(
 			'method'      => 'POST',
 			'timeout'     => 45,
@@ -501,7 +562,7 @@ class Ext_Accessibe extends WPCF7R_Action {
 			'cookies'     => array(),
 		);
 		$response  = wp_remote_post( $this->api_url, $post_args );
-		
+
 		if ( ! is_wp_error( $response ) ) {
 			$response = wp_remote_retrieve_body( $response );
 			$response = (object) json_decode( $response, true );
@@ -519,21 +580,21 @@ class Ext_Accessibe extends WPCF7R_Action {
 					'accessibe_plugin_dativation_date' => current_time( 'Ymd' ),
 				);
 				update_option( 'accesibe_options', $options_args );
-				$response = new WP_Error( 'activate', __( 'This Domain Is Already Registered' ) );
+				$response = new WP_Error( 'activate', __( 'This Domain Is Already Registered', 'wpcf7-redirect' ) );
 			}
 		}
 		return $response;
 	}
 
 	/**
-	 * Get accesibe options
+	 * Get `accessiBe` options
 	 */
 	public function get_settings() {
 		return get_option( 'accesibe_options' );
 	}
 
 	/**
-	 * Create Accesibie Menu
+	 * Create `accessiBe` Menu
 	 */
 	public function accessibie_menu() {
 		// Add the menu item and page!
@@ -600,9 +661,9 @@ class Ext_Accessibe extends WPCF7R_Action {
 				'triggerRadius'    => $this->get( 'triggerRadiusMobile' ) ? $this->get( 'triggerRadiusMobile' ) : '50%',
 			),
 		);
-		$options = json_encode( $params, JSON_UNESCAPED_UNICODE );
+		$options = wp_json_encode( $params, JSON_UNESCAPED_UNICODE );
 		?>
-		<script>(function(){var s = document.createElement('script'),e = ! document.body ? document.querySelector('head') : document.body;s.src = 'https://acsbapp.com/apps/app/assets/js/acsb.js';s.async = s.defer = true;s.onload = function(){acsbJS.init(<?php echo $options; ?>);};e.appendChild(s);}());</script>
+		<script>(function(){var s = document.createElement('script'),e = ! document.body ? document.querySelector('head') : document.body;s.src = 'https://acsbapp.com/apps/app/assets/js/acsb.js';s.async = s.defer = true;s.onload = function(){acsbJS.init(<?php echo esc_js( $options ); ?>);};e.appendChild(s);}());</script>
 		<?php
 	}
 
@@ -620,6 +681,11 @@ class Ext_Accessibe extends WPCF7R_Action {
 	}
 }
 
+/**
+ * Get the plugin display name
+ *
+ * @return string The plugin display name
+ */
 function qs_get_plugin_display_name() {
 	return apply_filters( 'qs_get_plugin_display_name', 'Accessibility' );
 }

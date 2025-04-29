@@ -1,11 +1,24 @@
 <?php
 /**
- * Class for handling contact form 7 redirection pro extensions
+ * Class for handling contact form 7 redirection pro extensions.
+ *
+ * @package    Redirection_For_Contact_Form_7
+ * @subpackage Extensions
  */
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Extension handler class for Contact Form 7 Redirection Pro.
+ *
+ * Manages installation, activation and updates of CF7 extensions.
+ */
 class WPCF7R_Extension {
+	/**
+	 * Constructor.
+	 *
+	 * @param array $extension Extension configuration array.
+	 */
 	public function __construct( $extension ) {
 
 		$this->name                = $extension['name'];
@@ -37,30 +50,45 @@ class WPCF7R_Extension {
 	}
 
 	/**
-	 * Get affiliate url (if the extension is affiliated)
+	 * Get affiliate url (if the extension is affiliated).
+	 *
+	 * @return string Affiliate URL.
 	 */
 	public function get_aff_url() {
 		return isset( $this->external_url ) ? $this->external_url : '';
 	}
 
+	/**
+	 * Get extension file name.
+	 *
+	 * @return string Extension file name.
+	 */
 	public function get_extension_file_name() {
 		return $this->extension_file_name;
 	}
+
 	/**
-	 * Get the extension slug
+	 * Get the extension slug.
+	 *
+	 * @return string Extension slug.
 	 */
 	public function get_slug() {
 		return $this->slug;
 	}
+
 	/**
-	 * Get the btn label
+	 * Get the btn label.
+	 *
+	 * @return string Button text.
 	 */
 	public function get_btn_text() {
 		return $this->btn_text;
 	}
 
 	/**
-	 * Get the extension version
+	 * Get the extension version.
+	 *
+	 * @return string Extension version.
 	 */
 	public function get_ver() {
 
@@ -80,28 +108,36 @@ class WPCF7R_Extension {
 	}
 
 	/**
-	 * Get the extension name
+	 * Get the extension name.
+	 *
+	 * @return string Extension name.
 	 */
 	public function get_name() {
 		return $this->name;
 	}
 
 	/**
-	 * Get the extension type
+	 * Get the extension type.
+	 *
+	 * @return string Extension type.
 	 */
 	public function get_type() {
 		return $this->type;
 	}
 
 	/**
-	 * Get the installed extension version
+	 * Get the installed extension version.
+	 *
+	 * @return string Installed extension version.
 	 */
 	public function get_extension_ver() {
 		return isset( $this->extension_ver ) ? $this->extension_ver : '';
 	}
 
 	/**
-	 * Get the path of the extension
+	 * Get the path of the extension.
+	 *
+	 * @return string Extension file path.
 	 */
 	public function get_extension_file_path() {
 		$path = '';
@@ -117,7 +153,9 @@ class WPCF7R_Extension {
 	}
 
 	/**
-	 * Get the path of the extension for plugin activation
+	 * Get the path of the extension for plugin activation.
+	 *
+	 * @return string Extension relative path.
 	 */
 	public function get_extension_relative_path() {
 
@@ -127,91 +165,105 @@ class WPCF7R_Extension {
 	}
 
 	/**
-	 * Get the extension file name
+	 * Get the extension file name.
 	 *
-	 * @return void
+	 * @return string Class name.
 	 */
 	public function get_class_name() {
 		return $this->classname;
 	}
 
 	/**
-	 * Check if the file required for the extension exists
+	 * Check if the file required for the extension exists.
+	 *
+	 * @return bool True if file exists.
 	 */
 	public function extension_file_exists() {
 		return file_exists( $this->get_extension_file_path() );
 	}
 
 	/**
-	 * Set the required update flag
+	 * Set the required update flag.
 	 */
 	public function set_updated() {
 		delete_option( 'wpcf7r_extension-needs-update-' . $this->get_name() );
 	}
 
 	/**
-	 * Check if an extension requires an update
+	 * Check if an extension requires an update.
 	 *
-	 * @return boolean
+	 * @return bool True if update is needed.
 	 */
 	public function has_update() {
 		return get_option( 'wpcf7r_extension-needs-update-' . $this->get_name() ) && $this->is_active();
 	}
 
 	/**
-	 * Get the version of the update
+	 * Get the version of the update.
+	 *
+	 * @return string Update version.
 	 */
 	public function update_version() {
 		return get_option( 'wpcf7r_extension-needs-update-' . $this->get_name() );
 	}
 
 	/**
-	 * Set the required update flag
+	 * Set the required update flag.
+	 *
+	 * @param string $new_ver New version number.
 	 */
 	public function set_needs_update( $new_ver ) {
 		update_option( 'wpcf7r_extension-needs-update-' . $this->get_name(), $new_ver );
 	}
 
 	/**
-	 * Get the HTML box to display the promo box
+	 * Get the HTML box to display the promo box.
 	 */
 	public function get_action_promo() {
-		include( WPCF7_PRO_REDIRECT_TEMPLATE_PATH . 'extensions/extension-promo-box.php' );
+		include WPCF7_PRO_REDIRECT_TEMPLATE_PATH . 'extensions/extension-promo-box.php';
 	}
 
 	/**
-	 * If the plugin file exists but license was not activated
+	 * If the plugin file exists but license was not activated.
 	 *
-	 * @return void
+	 * @return bool True if activation needed.
 	 */
 	public function needs_activation() {
 		return ! $this->is_active() && $this->extension_file_exists();
 	}
+
 	/**
-	 * Check if the license is active
+	 * Check if the license is active.
+	 *
+	 * @return bool True if license is active.
 	 */
 	public function is_active() {
 		return $this->get_activation_data() && $this->extension_file_exists();
 	}
 
 	/**
-	 * Get the saved serial number
+	 * Get the saved serial number.
+	 *
+	 * @return string Serial number.
 	 */
 	public function get_serial() {
 		return get_option( 'wpcf7r_activation_serial-' . $this->get_name() );
 	}
 
 	/**
-	 * Get the saved license activation data
+	 * Get the saved license activation data.
+	 *
+	 * @return mixed Activation data.
 	 */
 	public function get_activation_data() {
 		return get_option( 'wpcf7r_activation_data-' . $this->get_name() );
 	}
 
 	/**
-	 * Activate the serial via API
+	 * Activate the serial via API.
 	 *
-	 * @param $serial
+	 * @param string $serial License serial number.
+	 * @return array Response data.
 	 */
 	public function activate( $serial ) {
 		$this->api = new Qs_Api();
@@ -240,9 +292,8 @@ class WPCF7R_Extension {
 			}
 		}
 
-		//serial was not valid
+		// serial was not valid.
 		if ( is_wp_error( $is_valid ) ) {
-
 			$message = $is_valid->get_error_message();
 
 			if ( is_object( $message ) && isset( $message->license_key ) ) {
@@ -256,9 +307,8 @@ class WPCF7R_Extension {
 			$response = array(
 				'error' => $message,
 			);
-
 		} else {
-			//serial was valid, update the activation key for future validation
+			// serial was valid, update the activation key for future validation.
 			$this->set_activation( $is_valid->data, $serial );
 
 			if ( $this->extension_file_exists() ) {
@@ -277,16 +327,16 @@ class WPCF7R_Extension {
 
 			$file_path = $this->get_destination_path() . '/' . $this->extension_file_name;
 
-			//check if the require file exists
+			// check if the require file exists.
 			if ( file_exists( $file_path ) ) {
-				//check if the class exists if not include the required file
+				// check if the class exists if not include the required file.
 				if ( ! class_exists( $this->classname ) ) {
 					if ( $file_path ) {
-						include( $file_path );
+						include $file_path;
 					}
 				}
 
-				//if now both class exists and has a setup method.. run it
+				// if now both class exists and has a setup method, run it.
 				if ( class_exists( $this->classname ) && method_exists( $this->classname, 'setup' ) ) {
 					call_user_func( array( $this->classname, 'setup' ) );
 				}
@@ -298,12 +348,19 @@ class WPCF7R_Extension {
 		return $response;
 	}
 
+	/**
+	 * Get destination path for extension.
+	 *
+	 * @return string Destination path.
+	 */
 	public function get_destination_path() {
 		return WPCF7_PRO_REDIRECT_PLUGINS_PATH . $this->get_name();
 	}
 
 	/**
-	 * Get the extension download link
+	 * Get the extension download link.
+	 *
+	 * @return string Download link.
 	 */
 	public function get_extension_remote_file() {
 		$this->api = isset( $this->api ) && $this->api ? $this->api : new Qs_Api();
@@ -312,8 +369,11 @@ class WPCF7R_Extension {
 
 		return $download_link;
 	}
+
 	/**
-	 * Save the Newly downloaded file to the plugins dir
+	 * Save the Newly downloaded file to the plugins dir.
+	 *
+	 * @return array Response data.
 	 */
 	public function save_extension_file() {
 		global $wp_filesystem;
@@ -331,13 +391,12 @@ class WPCF7R_Extension {
 
 			$this->reset_activation();
 		} else {
-
 			WP_Filesystem();
 
 			$destination_path = $this->get_destination_path();
 
 			/**
-			 * Create a directory for the action addons and create index.php for security
+			 * Create a directory for the action addons and create index.php for security.
 			 */
 			if ( ! is_dir( $destination_path ) ) {
 				@mkdir( $destination_path );
@@ -369,9 +428,7 @@ class WPCF7R_Extension {
 	}
 
 	/**
-	 * Activate new downloaded extension
-	 *
-	 * @return void
+	 * Activate new downloaded extension.
 	 */
 	public function activate_new_plugin() {
 
@@ -382,22 +439,22 @@ class WPCF7R_Extension {
 		if ( ! is_plugin_active( $this->get_extension_relative_path() ) ) {
 			activate_plugin( $this->get_extension_relative_path() );
 		}
-
 	}
+
 	/**
-	 * Get extension badge text
+	 * Get extension badge text.
 	 *
-	 * @return void
+	 * @return string Badge HTML.
 	 */
 	public function get_badge() {
 		return $this->badge ? "<span class='badge'>" . $this->badge . '</span>' : '';
 	}
 
 	/**
-	 * Set all data related with the plugin activation
+	 * Set all data related with the plugin activation.
 	 *
-	 * @param $validation_data
-	 * @param $serial
+	 * @param object $validation_data Validation data.
+	 * @param string $serial License serial number.
 	 */
 	public function set_activation( $validation_data, $serial ) {
 		update_option( 'wpcf7r_activation_id-' . $this->get_name(), $validation_data->activation_id );
@@ -408,7 +465,7 @@ class WPCF7R_Extension {
 	}
 
 	/**
-	 * Clear all activation data
+	 * Clear all activation data.
 	 */
 	public function reset_activation() {
 		delete_option( 'wpcf7r_activation_id-' . $this->get_name() );
@@ -418,18 +475,29 @@ class WPCF7R_Extension {
 		update_option( 'wpcf7r_activation_' . $this->get_name() . '-sku', $this->sku );
 	}
 
+	/**
+	 * Get the SKU.
+	 *
+	 * @return string Extension SKU.
+	 */
 	public function get_sku() {
 		return isset( $this->sku ) && $this->sku ? $this->sku : get_option( 'wpcf7r_activation_' . $this->get_name() . '-sku' );
 	}
+
 	/**
-	 * Get the activation key
+	 * Get the activation key.
+	 *
+	 * @return string Activation ID.
 	 */
 	public function get_activation_id() {
 		return get_option( 'wpcf7r_activation_id-' . $this->get_name() );
 	}
 
 	/**
-	 * Deactivate extension license
+	 * Deactivate extension license.
+	 *
+	 * @param string $serial Optional. License serial number.
+	 * @return array Response data.
 	 */
 	public function deactivate_license( $serial = '' ) {
 
@@ -455,7 +523,9 @@ class WPCF7R_Extension {
 	}
 
 	/**
-	 * Ajax function for getting the extension html box
+	 * Ajax function for getting the extension html box.
+	 *
+	 * @return string Extension HTML.
 	 */
 	public function ajax_extension_html() {
 		ob_start();
@@ -468,28 +538,36 @@ class WPCF7R_Extension {
 	}
 
 	/**
-	 * Get the link to purchase the extension
+	 * Get the link to purchase the extension.
+	 *
+	 * @return string Purchase link.
 	 */
 	public function get_purchase_link() {
 		return WPCF7_PRO_REDIRECT_PLUGIN_PAGE_URL . $this->name;
 	}
 
 	/**
-	 * Get the extension description
+	 * Get the extension description.
+	 *
+	 * @return string Extension description.
 	 */
 	public function get_description() {
 		return $this->description;
 	}
 
 	/**
-	 * Get the extension icon
+	 * Get the extension icon.
+	 *
+	 * @return string Extension icon.
 	 */
 	public function get_icon() {
 		return $this->icon;
 	}
 
 	/**
-	 * Get the extension name
+	 * Get the extension name.
+	 *
+	 * @return string Extension title.
 	 */
 	public function get_title() {
 		return $this->title;

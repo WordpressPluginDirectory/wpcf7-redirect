@@ -17,28 +17,28 @@ class WPCF7R_Module {
 	/**
 	 * Hold the active modules
 	 *
-	 * @var [type]
+	 * @var array<string, array<string, string>>|null
 	 */
 	private static $registered_modules;
 
 	/**
 	 * Hold the module name
 	 *
-	 * @var [string]
+	 * @var string
 	 */
 	private $name;
 
 	/**
 	 * Hold the module title
 	 *
-	 * @var [string]
+	 * @var string
 	 */
 	private $title;
 
 	/**
 	 * General init function for all child modules.
 	 *
-	 * @param [array] $module the module array.
+	 * @param array<string, string> $module The module configuration array.
 	 *
 	 * @return void
 	 */
@@ -57,11 +57,12 @@ class WPCF7R_Module {
 	}
 
 	/**
-	 * Add a new module
+	 * Register a new module to be used by the plugin
 	 *
-	 * @param [string] $name - the module name.
-	 * @param [string] $title - the module title.
-	 * @param [string] $handler - the name of the module main class.
+	 * @param string $name    The module name (slug).
+	 * @param string $title   The module display title.
+	 * @param string $handler The name of the module main class.
+	 *
 	 * @return void
 	 */
 	public static function register_module( $name, $title, $handler ) {

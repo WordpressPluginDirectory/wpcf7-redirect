@@ -1,19 +1,21 @@
+// @ts-check
+
 /**
- * Validation for fields
+ * Handles validation for Contact Form 7 fields in the admin area
+ * @param {Object} $ - jQuery instance
  * @constructor
  */
-function Wpcf7_admin_validations($){
+export function Wpcf7_admin_validations($){
 
     this.rules = {
-
     	rules: {
-
     	}
-
     };
 
+    /**
+     * Initializes validation by adding custom methods and applying validation to the form
+     */
     this.init = function(){
-
         this.addMethods();
 
         $('#wpcf7-contact-form-editor form').validate({
@@ -30,6 +32,9 @@ function Wpcf7_admin_validations($){
 
     };
 
+    /**
+     * Registers all custom validation methods
+     */
     this.addMethods = function(){
 
         this.nospaces();
@@ -39,13 +44,9 @@ function Wpcf7_admin_validations($){
     };
 
     /**
-
-     * Allow only enlish and numbers
-
-     * @return {[type]} [description]
-
+     * Adds validation method to allow only English characters and numbers
+     * @return {void}
      */
-
     this.englishAndNumbersOnly = function(){
 
         $.validator.addMethod("validateenglishnumbers", function(value, element) {
@@ -63,11 +64,9 @@ function Wpcf7_admin_validations($){
     };
 
     /**
-
-     * Disallow spaces
-
+     * Adds validation method to disallow spaces in input fields
+     * @return {void}
      */
-
     this.nospaces = function(){
 
         $.validator.addMethod("validatenospace", function(value, element) {
@@ -85,5 +84,4 @@ function Wpcf7_admin_validations($){
     };
 
     this.init();
-
 }

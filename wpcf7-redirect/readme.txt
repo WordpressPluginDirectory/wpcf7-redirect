@@ -2,8 +2,8 @@
 Tags: cf7 redirect, redirect cf7, contact form 7 MailChimp, redirect to URL, contact form 7 paypal
 Contributors: codeinwp, themeisle, yuvalsabar, regevlio
 Requires at least: 5.2.0
-Tested up to: 6.7
-Stable tag: 3.1.10
+Tested up to: 6.8
+Stable tag: 3.2.1
 License: GPLv3 or later
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
@@ -11,7 +11,9 @@ Redirect to any page or URL, execute scripts after submission, save data to the 
 
 == Description ==
 
-Redirection for Contact Form 7 streamlines your form submissions by offering flexible redirection options. Redirect users to specific pages, execute post-submission JavaScript, and append form data to URLs for a personalized touch. PRO features expand your capabilities with API integration, PDF generation, and support for major services like Mailchimp, PayPal, Stripe, HubSpot, Salesforce, and Twilio.
+Redirection for Contact Form 7 enhances your forms with essential post-submission actions all in one plugin. Store form entries in your database, redirect users to any page or URL, send email notifications, block spam with honeypot protection, and help with GDPR compliance through data export/erase requests.
+
+Want more power? Our PRO version includes JavaScript execution after submission, webhook integration for third-party services, conditional logic based on user input, frontend post creation, PDF generation from form data, and seamless integrations with popular services like Mailchimp, PayPal, Stripe, HubSpot, Salesforce, and Twilio.
 
 == 🔗 HELPFUL LINKS: ==
 
@@ -31,8 +33,6 @@ Simply go to your form settings, select the "Action" tab, and add additional Sub
 
 - **Open Page in a New Tab:** Configure forms to open the target URL in a new tab, keeping your site accessible to users post-submission.
 
-- **Run JavaScript After Form Submission:** Execute custom JavaScript code after a form is submitted, ideal for tracking conversions and integrating with analytics tools.
-
 - **Pass Fields from the Form as URL Query Parameters:** Seamlessly append submitted form data to the URL as query parameters, enabling personalized follow-up pages.
 
 - **Add Honeypot to Minimize Spam:** Integrate a honeypot technique in your forms to prevent spam without affecting user experience.
@@ -47,11 +47,13 @@ Simply go to your form settings, select the "Action" tab, and add additional Sub
 
 - **Add Conditional Logic:** Enhance your submission actions with the Conditional Logic of Actions Extension. Set If/Or rules based on user inputs to manage powerful conditional rules effectively.
 
+- **Run JavaScript After Form Submission:** Execute custom JavaScript code after a form is submitted, ideal for tracking conversions and integrating with analytics tools.
+
 - **Create and Send PDF:** Add the option to generate and send PDF using the submitted form fields. 
 
 - **Frontend Publishing:** Add the ability to allow your users to publish posts from your website front-end.
 
-- **API Integration:** Empower your forms with advanced API integration, supporting POST, GET, DELETE, PATCH methods and PARAMS, JSON, and XML formats for comprehensive connectivity.
+- **Webhook Integration:** Supercharge your forms with advanced Webhook support—seamlessly connect to third-party apps using POST, GET, DELETE, and PATCH methods, with full compatibility for PARAMS, JSON, and XML formats.Empower your forms with advanced Webhook integration, supporting POST, GET, DELETE, PATCH methods and PARAMS, JSON, and XML formats for comprehensive connectivity with third party apps.
 
 - **Add a Thank You Popup:** Add the ability to thank your users with a noticeably designed thank-you popup.
 
@@ -143,13 +145,46 @@ No. One of the reasons we developed this plugin, is because on_send_ok is now de
 
 == Screenshots ==
 
-1. Actions tab
-2. Redirect Action
-3. Fire JavaScript Action
-4. Save Lead Actions
-5. Extensions tab
+1. Dashboard
+2. Add Actions
+3. Actions tab
+4. Redirection Action
+5. Save Entries Action
 
 == Changelog ==
+
+#####   Version 3.2.1 (2025-04-28)
+
+- [Feat] Add wpcf7r_get_actions_categories hook for developers to extend the available actions in UI.
+- [Fix] Errors when using Multi Step by Ninja.
+- [Fix] Small PHP warnings.
+- [Fix] Salesforce connection error.
+
+
+
+
+####   Version 3.2.0 (2025-04-23)
+
+- [Feat] Introduced a new dashboard
+- [Feat] Improved Add to action interface to showcase available actions better
+- [Feat] Improved layout for Actions list, with a toggle to update the status and new Edit/Delete/Duplicate buttons
+- [Feat] Open the action options by default when a new action is added
+- [Feat] Rename Leads to Entries and improved the layout of the Entries List
+- [Feat] Improved Conditional Logic layout
+- [Feat] Added a Learn about Pro button in the plugins listing page
+- [Feat] Moved Fire JavaScript action to a separate premium add-on for new users
+- [Feat] Rename API Request action to Webhook to better showcase its options
+- [Fix] Removed dashboard notice for rating
+- [Fix] Make Contact Form 7 required for plugin activation
+- [Fix] Enhance Twilio API key validation and improve field labels in settings
+- [Fix] HubSpot connection validation and AJAX handling
+- [Fix] Add utility functions to save the files in a custom upload folder, and added security similar to Contact Form 7.
+- [Fix] Delete the uploaded files when an entry is deleted.
+- [Fix] Added a preview feature for uploaded images.
+- [Fix] Fix various broken links and UI inconsistencies
+
+
+
 
 #####   Version 3.1.10 (2025-01-10)
 

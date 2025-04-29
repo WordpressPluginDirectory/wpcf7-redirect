@@ -1,75 +1,97 @@
 <?php
-
 /**
  * Displays the list of actions
  */
 
 defined( 'ABSPATH' ) || exit;
 
-$rule_id = 'default';
-$actions = $this->get_actions( $rule_id );
+$rule_id                    = 'default';
+$saved_actions              = $this->get_actions( $rule_id );
+$available_actions_handlers = wpcf7r_get_available_actions_handlers();
+$actions                    = array();
 
-$addons_url = admin_url( wpcf7_get_freemius_addons_path() );
+// Display registered actions only.
+foreach ( $saved_actions as $action_key => $action_class ) {
+	if ( null === $action_class ) {
+		continue;
+	}
+
+	$action_handler = get_class( $action_class );
+
+	if ( in_array( $action_handler, $available_actions_handlers ) ) {
+		$actions[ $action_key ] = $action_class;
+	}
+}
+
+$addons_url = esc_url( admin_url( 'admin.php?page=wpcf7r-dashboard#addons' ) );
 ?>
 
-<h2>
-	<?php _e( 'Submission Actions', 'wpcf7-redirect' ); ?>
-</h2>
+<div class="rcf7-actions-header">
+	<h2>
+		<?php esc_html_e( 'Submission Actions', 'wpcf7-redirect' ); ?>
+	</h2>
+	<?php require 'add-actions-dropdown.php'; ?>
+</div>
 <?php wp_nonce_field( 'manage_cf7_redirect', 'actions-nonce' ); ?>
 <legend>
-	<?php _e( 'You can add actions that will be fired on submission. For details and support check', 'wpcf7-redirect' ); ?> <a href="<?php echo $addons_url; ?>" target="_blank"><?php _e( 'out our add-ons', 'wpcf7-redirect' ); ?></a>.
+	<?php
+	printf(
+		/* translators: %1$s is replaced with the opening link tag, %2$s is replaced with the closing link tag */
+		esc_html__( 'You can add actions that will be fired on submission. For details and support check %1$sout our add-ons%2$s.', 'wpcf7-redirect' ),
+		'<a href="' . esc_url( $addons_url ) . '" target="_blank">',
+		'</a>'
+	);
+	?>
 </legend>
+
+<div style="display: none;">
+	<?php
+	/**
+	 * Load the an empty TinyMCE editor so that WordPress can correctly load the dependencies.
+	 *
+	 * If we have no action to render at page loading with a TinyMCE editor attached, the dependencies will be missing for Actions (which use `wp_editor()`) that are added dynamically via HTML injection.
+	 */
+	wp_editor( '', 'non-interactive' );
+	?>
+</div>
 
 <div class="actions-list">
 	<div class="actions">
-		<table class="wp-list-table widefat fixed striped pages" data-wrapid="<?php echo $rule_id; ?>">
+		<table class="wp-list-table widefat fixed striped pages" data-wrapid="<?php echo esc_attr( $rule_id ); ?>">
 			<thead>
 				<tr>
 					<th class="manage-column cf7r-check-column">
-						<a href="#"><?php _e( 'No.', 'wpcf7-redirect' ); ?></a>
-					</th>
-					<th class="manage-column column-title column-primary sortable desc">
-						<a href="#"><?php _e( 'Title', 'wpcf7-redirect' ); ?></a>
-					</th>
-					<th class="manage-column column-primary sortable desc">
-						<a href="#"><?php _e( 'Type', 'wpcf7-redirect' ); ?></a>
-					</th>
-					<th class="manage-column column-primary sortable desc">
-						<a href="#"><?php _e( 'Active', 'wpcf7-redirect' ); ?></a>
 					</th>
 					<th class="manage-column cf7r-check-column">
+						<a href="#"><?php esc_html_e( 'No.', 'wpcf7-redirect' ); ?></a>
+					</th>
+					<th class="manage-column column-title column-primary sortable desc">
+						<a href="#"><?php esc_html_e( 'Title', 'wpcf7-redirect' ); ?></a>
+					</th>
+					<th class="manage-column column-primary sortable desc">
+						<a href="#"><?php esc_html_e( 'Type', 'wpcf7-redirect' ); ?></a>
+					</th>
+					<th class="manage-column column-primary sortable desc">
+						<a href="#">
+							<?php esc_html_e( 'Status', 'wpcf7-redirect' ); ?>
+						</a>
+					</th>
+					<th class="manage-column column-primary sortable desc">
 					</th>
 				</tr>
 			</thead>
 			<tbody id="the_list">
-				<?php if ( $actions ) : ?>
-					<?php foreach ( $actions as $action ) : ?>
-						<?php echo $action->get_action_row(); ?>
-					<?php endforeach; ?>
-				<?php endif; ?>
+				<?php
+				if ( ! empty( $actions ) ) {
+					$action_order = 1;
+					foreach ( $actions as $current_action ) {
+						// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+						echo $current_action->get_action_row( array( 'order' => $action_order ) );
+						++$action_order;
+					}
+				}
+				?>
 			</tbody>
 		</table>
-	</div>
-	<div class="add-new-action-wrap">
-		<select class="new-action-selector" name="new-action-selector">
-			<option value="" selected="selected"><?php _e( 'Choose Action', 'wpcf7-redirect' ); ?></option>
-			<?php foreach ( wpcf7r_get_available_actions() as $available_action_key => $available_action_label ) : ?>
-				<option value="<?php echo $available_action_key; ?>" <?php echo $available_action_label['attr']; ?>><?php echo $available_action_label['label']; ?></option>
-			<?php endforeach; ?>
-
-			<?php foreach ( wpcf7_get_extensions() as $extension ) : ?>
-				<?php if ( ! isset( $extension['active'] ) || ! $extension['active'] ) : ?>
-                    <?php
-                    $purchase_url = tsdk_utmify( wpcf7_redirect_upgrade_url(), 'wpcf7r-addon', 'add_actions' )
-                    ?>
-                    <option value="<?php echo $purchase_url; ?>" data-action="purchase">
-						<?php echo $extension['title']; ?> (<?php _e( 'Premium', 'wpcf7-redirect' ); ?>)
-					</option>
-				<?php endif; ?>
-			<?php endforeach; ?>
-		</select>
-		<a type="button" name="button" class="button-primary wpcf7-add-new-action" data-ruleid="<?php echo $rule_id; ?>" data-id="<?php echo $this->get_id(); ?>">
-			<?php _e( 'Add Action', 'wpcf7-redirect' ); ?>
-		</a>
 	</div>
 </div>

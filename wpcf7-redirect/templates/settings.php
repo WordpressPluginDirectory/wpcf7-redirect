@@ -16,7 +16,7 @@ do_action( 'before_redirect_settings_tab_title', $this->cf7_post );
 			<div class="wpcf7r-tab-wrap-inner">
 				<div data-tab-inner>
 					<div class="qs-row">
-						<?php include( 'default-settings.php' ); ?>
+						<?php require 'default-settings.php'; ?>
 					</div>
 				</div>
 			</div>

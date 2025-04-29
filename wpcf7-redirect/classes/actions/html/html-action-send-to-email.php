@@ -1,6 +1,8 @@
 <?php
 /**
- * html-action-send-to-email file.
+ * HTML-action-send-to-email file.
+ *
+ * @package Redirection_For_Contact_Form_7
  */
 
 defined( 'ABSPATH' ) || exit;

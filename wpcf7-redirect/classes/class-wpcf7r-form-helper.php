@@ -77,7 +77,11 @@ class WPCF7r_Form_Helper {
 	}
 
 	/**
-	 * Add Actions
+	 * Adds contact form actions.
+	 *
+	 * @access private
+	 *
+	 * @return void
 	 */
 	private function add_actions() {
 		add_action( 'init', array( $this, 'extensions' ) );
@@ -88,25 +92,38 @@ class WPCF7r_Form_Helper {
 		add_action( 'wp_enqueue_scripts', array( $this, 'front_end_scripts' ) );
 		// add contact form scripts for admin panel.
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_backend' ) );
-		add_action( 'wpcf7_contact_form', array( WPCF7r_Survey::get_instance(), 'init' ) );
+		add_action(
+			'before_redirect_settings_tab_title',
+			function () {
+				do_action( 'themeisle_internal_page', WPCF7_BASENAME, 'wpcf7-contact-form-edit' );
+			}
+		);
 	}
 
 	/**
-	 * Get extensions.
+	 * Gets and sets plugin extensions.
+	 *
+	 * @return void
 	 */
 	public function extensions() {
 		$this->extensions = wpcf7_get_extensions();
 	}
 
 	/**
-	 * Only load scripts when contact form instance is created
+	 * Loads frontend scripts and styles.
+	 *
+	 * Only loads when contact form instance is created.
+	 *
+	 * @return void
 	 */
 	public function front_end_scripts() {
 
-		wp_register_style( 'wpcf7-redirect-script-frontend', $this->build_css_url . 'wpcf7-redirect-frontend.min.css', array('contact-form-7'), '1.1' );
+		$dependencies = ( include WPCF7_PRO_REDIRECT_PATH . '/build/assets/frontend-script.asset.php' );
+
+		wp_register_style( 'wpcf7-redirect-script-frontend', WPCF7_PRO_REDIRECT_BASE_URL . 'build/assets/frontend-script.css', array( 'contact-form-7' ), $dependencies['version'] );
 		wp_enqueue_style( 'wpcf7-redirect-script-frontend' );
 
-		wp_register_script( 'wpcf7-redirect-script', $this->build_js_url . 'wpcf7r-fe.js', array( 'jquery' , 'contact-form-7'), '1.1', true );
+		wp_register_script( 'wpcf7-redirect-script', WPCF7_PRO_REDIRECT_BASE_URL . 'build/assets/frontend-script.js', array( 'jquery', 'contact-form-7' ), $dependencies['version'], true );
 		wp_enqueue_script( 'wpcf7-redirect-script' );
 		wp_localize_script( 'wpcf7-redirect-script', 'wpcf7r', array( 'ajax_url' => admin_url( 'admin-ajax.php' ) ) );
 
@@ -124,16 +141,18 @@ class WPCF7r_Form_Helper {
 	}
 
 	/**
-	 * Check if the current page is the plugin settings page
+	 * Checks if current page is plugin settings.
+	 *
+	 * @return bool True if settings page, false otherwise.
 	 */
 	public function is_wpcf7_settings_page() {
 		return isset( $_GET['page'] ) && 'wpc7_redirect' === $_GET['page'];
 	}
 
 	/**
-	 * Check if the current admin post type is a lead post type.
+	 * Checks if current page is lead entries.
 	 *
-	 * @return boolean
+	 * @return bool True if lead entries page, false otherwise.
 	 */
 	public function is_wpcf7_lead_page() {
 		return 'wpcf7r_leads' === get_post_type();
@@ -141,54 +160,107 @@ class WPCF7r_Form_Helper {
 
 	/**
 	 * Check if the current page is the contact form edit screen
+	 *
+	 * @return bool
 	 */
 	public function is_wpcf7_edit() {
 		return wpcf7r_is_wpcf7_edit();
 	}
 
 	/**
-	 * Load plugin textdomain.
+	 * Loads plugin text domain for translations.
+	 *
+	 * @return void
 	 */
 	public function load_textdomain() {
 		load_plugin_textdomain( 'wpcf7-redirect', false, basename( __DIR__ ) . '/lang' );
 	}
 
 	/**
-	 * Enqueue theme styles and scripts - back-end
+	 * Enqueues admin scripts and styles.
+	 *
+	 * @return void
 	 */
 	public function enqueue_backend() {
 
-		if ( $this->is_wpcf7_edit() || $this->is_wpcf7_settings_page() || $this->is_wpcf7_lead_page() ) {
-
-			wp_enqueue_style( 'admin-build', $this->build_css_url . 'wpcf7-redirect-backend.css', array(), WPCF7_PRO_REDIRECT_PLUGIN_VERSION );
-
-			wp_enqueue_script( 'admin-build-js', $this->build_js_url . 'wpcf7-redirect-backend-script.js', array(), WPCF7_PRO_REDIRECT_PLUGIN_VERSION, true );
-			wp_enqueue_script(
-				array(
-					'jquery-ui-core',
-					'jquery-ui-sortable',
-					'wp-color-picker',
-				)
-			);
-
-			// Load active extensions scripts and styles.
-			$installed_extensions = wpcf7r_get_available_actions();
-
-			foreach ( $installed_extensions as $installed_extension ) {
-				if ( method_exists( $installed_extension['handler'], 'enqueue_backend_scripts' ) ) {
-					call_user_func( array( $installed_extension['handler'], 'enqueue_backend_scripts' ) );
-				}
-			}
-
-			// add support for other plugins.
-			do_action( 'wpcf_7_redirect_admin_scripts', $this );
+		if ( ! $this->is_wpcf7_edit() && ! $this->is_wpcf7_settings_page() ) {
+			return;
 		}
+
+		$dependencies = ( include WPCF7_PRO_REDIRECT_PATH . '/build/assets/backend-script.asset.php' );
+
+		wp_enqueue_style( 'admin-build', WPCF7_PRO_REDIRECT_BASE_URL . 'build/assets/backend-script.css', array(), $dependencies['version'] );
+
+		wp_enqueue_script(
+			'wpcf7-backend-lib-select2',
+			WPCF7_PRO_REDIRECT_BASE_URL . 'assets/lib/select2/select2.min.js',
+			array(),
+			$dependencies['version'],
+			true
+		);
+
+		wp_enqueue_script(
+			'wpcf7-backend-lib-validate',
+			WPCF7_PRO_REDIRECT_BASE_URL . 'assets/lib/jquery-validate/jquery.validate.min.js',
+			array(),
+			$dependencies['version'],
+			true
+		);
+
+		wp_enqueue_script(
+			'wpcf7-backend-lib-methods',
+			WPCF7_PRO_REDIRECT_BASE_URL . 'assets/lib/jquery-validate/additional-methods.min.js',
+			array(),
+			$dependencies['version'],
+			true
+		);
+
+		wp_enqueue_script(
+			'admin-build-js',
+			WPCF7_PRO_REDIRECT_BASE_URL . '/build/assets/backend-script.js',
+			array(
+				'jquery',
+				'jquery-ui-core',
+				'jquery-ui-sortable',
+				'wp-color-picker',
+				'wpcf7-backend-lib-select2',
+				'wpcf7-backend-lib-validate',
+				'wpcf7-backend-lib-methods',
+			),
+			$dependencies['version'],
+			true
+		);
+
+		wp_localize_script(
+			'admin-build-js',
+			'rcf7Data',
+			array(
+				'labels' => array(
+					'selectField' => __( 'Select Field', 'wpcf7-redirect' ),
+				),
+			)
+		);
+
+		wp_set_script_translations( 'admin-build-js', 'wpcf7-redirect' );
+
+		// Load active extensions scripts and styles.
+		$installed_extensions = wpcf7r_get_available_actions();
+
+		foreach ( $installed_extensions as $installed_extension ) {
+			if ( method_exists( $installed_extension['handler'], 'enqueue_backend_scripts' ) ) {
+				call_user_func( array( $installed_extension['handler'], 'enqueue_backend_scripts' ) );
+			}
+		}
+
+		// add support for other plugins.
+		do_action( 'wpcf_7_redirect_admin_scripts', $this );
 	}
 
 	/**
-	 * Store form data.
+	 * Stores form metadata.
 	 *
-	 * @param [object] $cf7  -contact form object.
+	 * @param object $cf7 Contact form object.
+	 * @return void
 	 */
 	public function store_meta( $cf7 ) {
 
@@ -197,28 +269,29 @@ class WPCF7r_Form_Helper {
 	}
 
 	/**
-	 * Adds a tab to the editor on the form edit page
+	 * Adds editor tab panel.
 	 *
-	 * @param array $panels An array of panels. Each panel has a callback function.
+	 * @param array $panels Array of editor panels.
+	 * @return array Modified panels array.
 	 */
 	public function add_panel( $panels ) {
 
 		// Disable plugin functionality for old contact form 7 installations.
 
 		if ( wpcf7_get_cf7_ver() > 4.8 ) {
-
 			$panels['redirect-panel'] = array(
 				'title'    => __( 'Actions', 'wpcf7-redirect' ),
 				'callback' => array( $this, 'create_panel_inputs' ),
 			);
-
 		}
 
 		return $panels;
 	}
 
 	/**
-	 * Get the default fields
+	 * Gets default plugin fields.
+	 *
+	 * @return array Array of default field definitions.
 	 */
 	public static function get_plugin_default_fields() {
 
@@ -231,9 +304,10 @@ class WPCF7r_Form_Helper {
 	}
 
 	/**
-	 * Create the panel inputs.
+	 * Creates panel input fields.
 	 *
-	 * @param object $cf7 - Contact form 7 post object.
+	 * @param object $cf7 Contact form object.
+	 * @return void
 	 */
 	public function create_panel_inputs( $cf7 ) {
 
@@ -243,10 +317,10 @@ class WPCF7r_Form_Helper {
 	}
 
 	/**
-	 * Returns an html for displaying a link to the form.
+	 * Generates HTML link to form.
 	 *
-	 * @param [int] $form_id - the if of the contact form 7 post.
-	 * @return [string] - a link to the form edit screen.
+	 * @param int $form_id Form post ID.
+	 * @return string Link HTML or error message.
 	 */
 	public static function get_cf7_link_html( $form_id ) {
 		$form_post  = get_post( $form_id );
@@ -259,5 +333,4 @@ class WPCF7r_Form_Helper {
 
 		return __( 'This form no longer exists', 'wpcf7-redirect' );
 	}
-
 }

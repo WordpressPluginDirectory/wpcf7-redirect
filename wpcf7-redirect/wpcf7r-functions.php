@@ -34,7 +34,7 @@ function wpcf7_get_extensions() {
 /**
  * Verify nonce
  *
- * @return void
+ * @return int|boolean Returns 1, 2 or false depending on the nonce check result
  */
 function wpcf7_validate_nonce() {
 	$nonce = isset( $_REQUEST['wpcf7r_nonce'] ) && $_REQUEST['wpcf7r_nonce'] ? $_REQUEST['wpcf7r_nonce'] : '';
@@ -198,18 +198,61 @@ function wpcf7_redirect_get_all_extensions_list() {
 }
 
 /**
- * Return the URL for the upgrade page.
- * @return string
+ * Get the slugs of the Pro plugins.
+ *
+ * @return string[] The slugs of the plugins.
  */
-function wpcf7_redirect_upgrade_url() {
-    return 'https://themeisle.com/plugins/wpcf7-redirect/upgrade';
+function wpcf7_get_pro_plugin_slugs() {
+	return array(
+		'wpcf7r_create_post',
+		'wpcf7r_paypal',
+		'wpcf7r_salesforce',
+		'wpcf7r_api',
+		'wpcf7r_hubspot',
+		'wpcf7r_pdf',
+		'wpcf7r_stripe',
+		'wpcf7r_conditional_logic',
+		'wpcf7r_mailchimp',
+		'wpcf7r_popup',
+		'wpcf7r_twilio',
+		'wpcf7r_firescript',
+	);
 }
 
 /**
- * Turn file path into base64 file.
+ * Get active pro plugin slugs based on license status.
  *
- * @param [string] $path - the path of the file to encode.
- * @return string $base64 - encoded file.
+ * @return string[] Slugs of active pro plugins.
+ */
+function wpcf7_get_active_pro_plugins() {
+	return array_filter(
+		wpcf7_get_pro_plugin_slugs(),
+		function ( $slug ) {
+			return 'valid' === apply_filters( $slug . '_license_status', false );
+		}
+	);
+}
+
+/**
+ * Return the URL for the upgrade page.
+ *
+ * @return string
+ */
+function wpcf7_redirect_upgrade_url() {
+	return tsdk_translate_link( 'https://themeisle.com/plugins/wpcf7-redirect/upgrade' );
+}
+
+/**
+ * Convert a file to base64 encoded string.
+ *
+ * Takes a file path, reads the content of the file, and converts it to a base64 encoded string.
+ * This is useful for embedding file contents in data URIs or for transmitting binary data.
+ *
+ * @since 1.0.0
+ *
+ * @param string $path The absolute path to the file to be encoded.
+ * @return string The base64 encoded content of the file.
+ * @throws Exception If the file does not exist or is not readable.
  */
 function wpcf7r_base_64_file( $path ) {
 
@@ -220,16 +263,18 @@ function wpcf7r_base_64_file( $path ) {
 }
 
 /**
- * Geberal function for getting form actions
+ * General function for retrieving form actions.
  *
- * @param [string] $post_type - the type of the action.
- * @param [string] $count - how many actions to return.
- * @param [string] $post_id - the contact form 7 id.
- * @param [string] $rule_id - the action rule id.
- * @param [string] $extra_args - extra arguments to filter the results.
- * @param [bool]   $active - active actions or non active actions.
+ * This function retrieves actions associated with a Contact Form 7 form based on various filtering parameters.
  *
- * @return [array] - $actions - an array containing actions posts.
+ * @param string $post_type   The type of the action (post type).
+ * @param int    $count       Number of actions to return.
+ * @param int    $post_id     The Contact Form 7 form ID.
+ * @param string $rule_id     The action rule ID.
+ * @param array  $extra_args  Additional arguments to filter the results.
+ * @param bool   $active      Whether to return only active actions (true) or all actions (false).
+ *
+ * @return array An array of action post objects.
  */
 function wpcf7r_get_actions( $post_type, $count, $post_id, $rule_id, $extra_args, $active ) {
 	$actions = array();
@@ -267,7 +312,12 @@ function wpcf7r_get_actions( $post_type, $count, $post_id, $rule_id, $extra_args
 }
 
 /**
- * Check if conditional logic extention is enabled
+ * Check if the conditional logic extension is enabled for Contact Form 7 Redirection.
+ *
+ * This function verifies if the conditional logic class exists and is available for use.
+ * The conditional logic extension allows for creating rules to determine when redirections occur.
+ *
+ * @return bool True if WPCF7_Redirect_Conditional_Logic class exists, false otherwise.
  */
 function wpcf7r_conditional_logic_enabled() {
 	return class_exists( 'WPCF7_Redirect_Conditional_Logic' );
@@ -276,8 +326,8 @@ function wpcf7r_conditional_logic_enabled() {
 /**
  * Serach for the file in the available directories
  *
- * @param $filename - the name of the fle to return;
- * @return [mixed] - path if the file exists/fals if not.
+ * @param string $filename The name of the file to return.
+ * @return mixed Path if the file exists, false if not.
  */
 function wpcf7r_get_addon_path( $filename ) {
 	if ( file_exists( WPCF7_PRO_REDIRECT_ACTIONS_PATH . $filename ) ) {
@@ -292,13 +342,14 @@ function wpcf7r_get_addon_path( $filename ) {
 /**
  * Get an array and transform it to html attributes
  *
- * @param $attributes
+ * @param array $attributes The attributes to convert to HTML.
+ * @return string The HTML attributes string.
  */
 function wpcf7r_implode_attributes( $attributes ) {
 	$result = join(
 		' ',
 		array_map(
-			function( $key ) use ( $attributes ) {
+			function ( $key ) use ( $attributes ) {
 				if ( is_bool( $attributes[ $key ] ) ) {
 					return $attributes[ $key ] ? $key : '';
 				}
@@ -312,7 +363,9 @@ function wpcf7r_implode_attributes( $attributes ) {
 }
 
 /**
- * Send emails as HTML
+ * Set the content type for Contact Form 7 emails to HTML.
+ *
+ * @return string The content type 'text/html' for HTML formatted emails
  */
 function wpcf7r_send_emails_as_html() {
 	return 'text/html';
@@ -321,17 +374,21 @@ function wpcf7r_send_emails_as_html() {
 /**
  * Helper function
  *
- * @param $name
- * @param $title
- * @param $class
- * @param $order
+ * @param string $name    Action name.
+ * @param string $title   Action title.
+ * @param string $class   Action class.
+ * @param int    $order   Action order.
  */
 function register_wpcf7r_actions( $name, $title, $class, $order = 0 ) {
 	WPCF7r_Utils::register_wpcf7r_actions( $name, $title, $class, $order );
 }
 
 /**
- * Get a list of available actions
+ * Get a list of available actions for Contact Form 7 Redirection plugin.
+ *
+ * @return array Sorted array of available redirection actions.
+ * @uses WPCF7r_Utils::get_wpcf7r_actions() To retrieve the actions.
+ * @uses apply_filters() Filters the actions with 'wpcf7r_get_available_actions'.
  */
 function wpcf7r_get_available_actions() {
 	$actions = WPCF7r_Utils::get_wpcf7r_actions();
@@ -342,11 +399,30 @@ function wpcf7r_get_available_actions() {
 }
 
 /**
+ *  Get a list of available actions handlers for Contact Form 7 Redirection plugin.
+ *
+ *  @return array Sorted array of available redirection actions handlers.
+ */
+function wpcf7r_get_available_actions_handlers() {
+	$available_handlers = array();
+
+	foreach ( wpcf7r_get_available_actions() as $available_action ) {
+		if ( empty( $available_action['handler'] ) || ! is_string( $available_action['handler'] ) ) {
+			continue;
+		}
+		$available_handlers[] = $available_action['handler'];
+	}
+
+	return $available_handlers;
+}
+
+/**
  * Get an instance of contact form 7 redirect form
  *
- * @param $form_id
- * @param $submission
- * @param $validation_obj
+ * @param int           $form_id       The form ID.
+ * @param string|object $submission    The submission data.
+ * @param string|object $validation_obj The validation object.
+ * @return WPCF7R_Form Form instance.
  */
 function get_cf7r_form( $form_id, $submission = '', $validation_obj = '' ) {
 	return new WPCF7R_Form( $form_id, $submission, $validation_obj );
@@ -355,16 +431,17 @@ function get_cf7r_form( $form_id, $submission = '', $validation_obj = '' ) {
 /**
  * Create HTML tooltip
  *
- * @param $tip
+ * @param string $tip The tooltip text.
+ * @return string HTML tooltip.
  */
 function cf7r_tooltip( $tip ) {
-	$tip = esc_attr( $tip );
-
-	return '<i class="dashicons dashicons-editor-help qs-tooltip"><span class="qs-tooltip-inner">' . $tip . '</span></i>';
+	return '<i class="dashicons dashicons-editor-help qs-tooltip"><span class="qs-tooltip-inner">' . wp_kses_post( $tip ) . '</span></i>';
 }
 
 /**
- * Get plugin base url
+ * Returns the base URL of the Redirection for Contact Form 7 plugin.
+ *
+ * @return string The absolute URL to the plugin root directory.
  */
 function wpcf7r_get_redirect_plugin_url() {
 	return WPCF7_PRO_REDIRECT_BASE_URL;
@@ -373,9 +450,10 @@ function wpcf7r_get_redirect_plugin_url() {
 /**
  * Get the value of a single block field
  *
- * @param $key
- * @param $block_key
- * @param $fields
+ * @param string $key       The field key.
+ * @param string $block_key The block key.
+ * @param array  $fields    The fields array.
+ * @return string The field value.
  */
 function wpcf7r_block_field_value( $key, $block_key, $fields ) {
 	return isset( $fields['blocks'][ $block_key ][ $key ] ) ? $fields['blocks'][ $block_key ][ $key ] : '';
@@ -418,10 +496,12 @@ function wpcf7_remove_contact_form_7_to_api() {
 }
 
 /**
- * Get CF7 version
+ * Get Contact Form 7 version.
+ *
+ * @return string|false The version of Contact Form 7 plugin, or false if not found.
  */
 function wpcf7_get_cf7_ver() {
-    return defined( 'WPCF7_VERSION' ) ? WPCF7_VERSION : false;
+	return defined( 'WPCF7_VERSION' ) ? WPCF7_VERSION : false;
 	if ( is_plugin_active( 'contact-form-7/wp-contact-form-7.php' ) ) {
 		$wpcf7_path = WPCF7_PRO_REDIRECT_PLUGINS_PATH . 'contact-form-7/wp-contact-form-7.php';
 		$wpcf7_data = get_plugin_data( $wpcf7_path, false, false );
@@ -471,6 +551,9 @@ add_shortcode( 'qs_date', 'wpcf7r_qs_date' );
 
 /**
  * Shortcode for creating date
+ *
+ * @param array $atts Shortcode attributes.
+ * @return string The formatted date.
  */
 function wpcf7r_qs_date( $atts ) {
 	$atts = shortcode_atts(
@@ -485,9 +568,11 @@ function wpcf7r_qs_date( $atts ) {
 }
 
 /**
- * Check if WPCF7 Debug
+ * Check if debugging mode is enabled for Redirection for Contact Form 7.
  *
- * @return [boolean]
+ * This function checks if the CF7_REDIRECT_DEBUG constant is defined and set to true.
+ *
+ * @return boolean True if debugging is enabled, false otherwise.
  */
 function is_wpcf7r_debug() {
 	return defined( 'CF7_REDIRECT_DEBUG' ) && CF7_REDIRECT_DEBUG ? true : false;
@@ -496,7 +581,14 @@ function is_wpcf7r_debug() {
 /**
  * Check if the current page is the edit contact form 7 page.
  *
- * @return [boolean] - true if this is the edit screen.
+ * This function determines whether the current admin page is:
+ * - A Contact Form 7 edit page (via GET parameters)
+ * - A Contact Form 7 new form page
+ * - A post edit page for Contact Form 7 post type
+ *
+ * @global WP_Post $post WordPress post object
+ *
+ * @return boolean True if the current screen is a Contact Form 7 edit screen, false otherwise.
  */
 function wpcf7r_is_wpcf7_edit() {
 	global $post;
@@ -507,8 +599,14 @@ function wpcf7r_is_wpcf7_edit() {
 
 	return $wpcf7_page_new_page || $wpcf7_page || $wpcf7_post;
 }
+
 /**
- * Get an array of available countries
+ * Get an array of available countries.
+ *
+ * Returns an associative array of country codes and their localized names.
+ * The country codes are in ISO 3166-1 alpha-2 format (two-letter country codes).
+ *
+ * @return array An associative array of country codes and localized country names.
  */
 function wpcf73_get_country_list() {
 	$country_array = array(
@@ -782,7 +880,12 @@ function wpcf73_get_country_list() {
 }
 
 /**
- * Get a list of languages
+ * Get a list of available languages with their localized names.
+ *
+ * Returns an associative array where keys are language codes (ISO 639-1)
+ * and values are the translated language names.
+ *
+ * @return array Associative array of language codes and their translated names.
  */
 function wpcf7_get_languages_list() {
 	return array(

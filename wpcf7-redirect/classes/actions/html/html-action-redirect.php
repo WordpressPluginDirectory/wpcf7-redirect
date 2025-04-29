@@ -1,6 +1,8 @@
 <?php
 /**
  * HTML action redirect
+ *
+ * @package Redirection_For_Contact_Form_7
  */
 
 defined( 'ABSPATH' ) || exit;

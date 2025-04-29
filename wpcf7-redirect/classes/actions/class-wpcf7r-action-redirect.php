@@ -1,6 +1,8 @@
 <?php
 /**
  * Class WPCF7R_Action_Redirect file.
+ *
+ * @package Redirection_For_Contact_Form_7
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -22,17 +24,25 @@ add_action(
 /**
  * Class WPCF7R_Action_Redirect
  * A Class that handles redirect actions
+ *
+ * @package Redirection_For_Contact_Form_7
  */
 class WPCF7R_Action_Redirect extends WPCF7R_Action {
 
 	/**
+	 * A constant defining the action slug for the redirect action.
+	 *
+	 * @var string
+	 */
+	const ACTION_SLUG = 'redirect';
+
+	/**
 	 * Init the parent action class
 	 *
-	 * @param $post
+	 * @param mixed $post The post object or post ID.
 	 */
 	public function __construct( $post ) {
 		parent::__construct( $post );
-
 	}
 
 	/**
@@ -43,7 +53,7 @@ class WPCF7R_Action_Redirect extends WPCF7R_Action {
 		$parent_fields = parent::get_default_fields();
 
 		unset( $parent_fields['action_status'] );
- 
+
 		return array_merge(
 			array(
 				array(
@@ -68,7 +78,11 @@ class WPCF7R_Action_Redirect extends WPCF7R_Action {
 					'type'        => 'text',
 					'label'       => __( 'Use external URL', 'wpcf7-redirect' ),
 					'placeholder' => __( 'Use external URL', 'wpcf7-redirect' ),
-					'tooltip'     => __( 'You can build a custom url like this https://example.com/[your-name]?[your-email]&[your-tel]', 'wpcf7-redirect' ),
+					'tooltip'     => sprintf(
+						// translators: $s: the example.
+						__( 'You can build a custom URL like this: %s', 'wpcf7-redirect' ),
+						'https://example.com/[your-name]?[your-email]&[your-tel]'
+					),
 					'footer'      => '<div>' . $this->get_formatted_mail_tags() . '</div><div class="wpcf7-redirect-butify-wrap"></div>',
 					'value'       => $this->get( 'external_url' ),
 					'class'       => $this->get( 'use_external_url' ) ? '' : 'field-hidden',
@@ -96,7 +110,7 @@ class WPCF7R_Action_Redirect extends WPCF7R_Action {
 					'label'         => '<strong>' . __( 'Notice!', 'wpcf7-redirect' ) . '</strong>',
 					'sub_title'     => __( 'This option might not work as expected, since browsers often block popup windows. This option depends on the browser settings.', 'wpcf7-redirect' ),
 					'placeholder'   => '',
-					'class'         => $this->get( 'open_in_new_tab' ) ? 'field-notice-alert' : 'field-hidden field-notice-alert',
+					'class'         => $this->get( 'open_in_new_tab' ) ? 'field-notice-info' : 'field-hidden field-notice-info',
 					'show_selector' => '',
 				),
 				array(
@@ -138,9 +152,13 @@ class WPCF7R_Action_Redirect extends WPCF7R_Action {
 					'name'          => 'get_param_shortcode',
 					'type'          => 'notice',
 					'label'         => '<strong>' . __( '[get_param]!', 'wpcf7-redirect' ) . '</strong>',
-					'sub_title'     => __( 'You can use this tag on the target page to collect the data transerred [get_param param="your-name"].', 'wpcf7-redirect' ),
+					'sub_title'     => sprintf(
+						// translators: %s: the tag to use: '[get_param param="your-name"]' .
+						__( 'You can use this tag on the target page to collect the data transferred: %s', 'wpcf7-redirect' ),
+						'[get_param param="your-name"]'
+					),
 					'placeholder'   => '',
-					'class'         => $this->get( 'http_build_query_selectively' ) ? 'field-notice-alert' : 'field-hidden field-notice-alert',
+					'class'         => $this->get( 'http_build_query_selectively' ) ? 'field-notice-info' : 'field-hidden field-notice-info',
 					'show_selector' => '',
 				),
 				array(
@@ -171,10 +189,10 @@ class WPCF7R_Action_Redirect extends WPCF7R_Action {
 				'disable_default_email' => array(
 					'name'          => 'disable_default_email',
 					'type'          => 'notice',
-					'label'         => __( '<strong>NOTICE!</strong><br/>', 'wpcf7-redirect' ),
+					'label'         => '<strong>' . __( 'Notice!', 'wpcf7-redirect' ) . '</strong>',
 					'sub_title'     => __( 'Redirection will always be the last action regardless of the actions order.', 'wpcf7-redirect' ),
 					'placeholder'   => '',
-					'class'         => $this->get( 'action_status' ) ? 'field-notice-alert' : 'field-hidden field-notice-alert',
+					'class'         => $this->get( 'action_status' ) ? 'field-notice-info' : 'field-hidden field-notice-info',
 					'show_selector' => '',
 				),
 			),
@@ -192,7 +210,8 @@ class WPCF7R_Action_Redirect extends WPCF7R_Action {
 	/**
 	 * Handle a simple redirect rule
 	 *
-	 * @param $submission
+	 * @param WPCF7_Submission $submission Contact Form 7 submission object.
+	 * @return array Response data for the redirect action.
 	 */
 	public function process( $submission ) {
 		$response = array();
@@ -209,20 +228,19 @@ class WPCF7R_Action_Redirect extends WPCF7R_Action {
 
 		if ( $this->get( 'use_external_url' ) === 'on' && $this->get( 'external_url' ) ) {
 			$response = array(
-				'type'         => 'redirect',
+				'type'         => self::ACTION_SLUG,
 				'redirect_url' => $this->replace_tags( $this->get( 'external_url' ) ),
 				'delay'        => $this->get( 'delay_redirect_seconds' ) ? (int) $this->get( 'delay_redirect_seconds' ) : 0,
 			);
 		} elseif ( $this->get( 'page_id' ) ) {
 			$response = array(
-				'type'         => 'redirect',
+				'type'         => self::ACTION_SLUG,
 				'redirect_url' => get_permalink( $this->get( 'page_id' ) ),
 				'delay'        => $this->get( 'delay_redirect_seconds' ) ? (int) $this->get( 'delay_redirect_seconds' ) : 0,
 			);
 		}
 
 		if ( $this->get( 'redirect_as_x_form_encoded_url' ) && isset( $response['redirect_url'] ) && $response['redirect_url'] ) {
-
 			ob_start();
 
 			$params = parse_url( $response['redirect_url'] );
@@ -245,22 +263,18 @@ class WPCF7R_Action_Redirect extends WPCF7R_Action {
 			}
 
 			?>
-			<form id="cf7r-result-form" action="<?php echo $response['redirect_url']; ?>" method="post">
+			<form id="cf7r-result-form" action="<?php echo esc_attr( $response['redirect_url'] ); ?>" method="post">
 				<?php foreach ( $fields as $field_key => $field_value ) : ?>
-					<input type="hidden" name="<?php echo $field_key; ?>" value="<?php echo $field_value; ?>">
+					<input type="hidden" name="<?php echo esc_attr( $field_key ); ?>" value="<?php echo esc_attr( $field_value ); ?>">
 				<?php endforeach; ?>
 			</form>
 			<?php
 			$response['form'] = ob_get_clean();
-
 		} elseif ( $this->get( 'http_build_query' ) === 'on' ) {
-
 			$response['http_build_query'] = true;
 
 			$response['redirect_url'] = add_query_arg( $this->posted_data, $response['redirect_url'] );
-
 		} elseif ( $this->get( 'http_build_query_selectively' ) === 'on' ) {
-
 			$fields_to_add      = explode( ',', $this->get( 'http_build_query_selectively_fields' ) );
 			$fields_to_add_args = array();
 

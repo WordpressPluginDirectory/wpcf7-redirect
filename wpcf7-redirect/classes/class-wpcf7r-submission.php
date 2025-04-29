@@ -41,14 +41,13 @@ class WPCF7r_Submission {
 	public $scripts = array();
 
 	/**
-	 * Change the response object returned to the client
+	 * Changes the response object returned to the client after form submission
 	 *
-	 * @param [object] $response - contact form 7 response object.
-	 * @return [object] $response - contact form 7 updated response object.
+	 * @param array $response Contact Form 7 response object.
+	 * @return array Modified response object with any additional data.
 	 */
 	public function manipulate_cf7_response_object( $response ) {
-
-		if ( isset( $this->response ) && $this->response ) {
+		if ( isset( $this->response ) && is_array( $this->response ) ) {
 			$response = array_merge( $this->response, $response );
 		}
 
@@ -56,21 +55,19 @@ class WPCF7r_Submission {
 	}
 
 	/**
-	 * Add plugin support to browsers that don't support ajax.
+	 * Provides redirection support for browsers that don't support AJAX submissions
+	 * Handles any custom actions needed when form is submitted normally
 	 *
-	 * @param [object] $wpcf7 - contact form 7 form object.
+	 * @param WPCF7_ContactForm $wpcf7 Contact Form 7 form object.
 	 * @return void
 	 */
 	public function non_ajax_redirection( $wpcf7 ) {
-
 		if ( ! WPCF7_Submission::is_restful() ) {
-
 			$submission = WPCF7_Submission::get_instance();
 
 			$wpcf7_form = get_cf7r_form( $wpcf7, $submission );
 
 			if ( 'mail_sent' === $wpcf7_form->get_submission_status() ) {
-
 				$results = $this->handle_valid_actions( $wpcf7 );
 
 				if ( $results ) {
@@ -105,6 +102,7 @@ class WPCF7r_Submission {
 	public function add_header_script() {
 		if ( isset( $this->scripts ) && $this->scripts ) {
 			foreach ( $this->scripts as $script ) {
+				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				echo '<script>' . $script . '</script>';
 			}
 		}
@@ -153,7 +151,7 @@ class WPCF7r_Submission {
 			if ( isset( $this->response['send_mail'] ) && $this->response['send_mail'] ) {
 				add_filter(
 					'wpcf7_skip_mail',
-					function() {
+					function () {
 						return true;
 					}
 				);

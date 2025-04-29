@@ -8,11 +8,12 @@ defined( 'ABSPATH' ) || exit;
 $field_id = $field['name'] . '-' . rand( 0, 1000 );
 ?>
 
-<div class="field-wrap field-wrap-<?php echo $field['name']; ?> <?php echo isset( $field['class'] ) ? $field['class'] : ''; ?>">
-	<label for="wpcf7-redirect-<?php echo $field['name']; ?>">
+<div class="field-wrap field-wrap-<?php echo esc_attr( $field['name'] ); ?> <?php echo esc_attr( isset( $field['class'] ) ? $field['class'] : '' ); ?>">
+	<label for="wpcf7-redirect-<?php echo esc_attr( $field['name'] ); ?>">
 		<strong><?php echo esc_html( $field['label'] ); ?></strong>
 	</label>
 	<?php
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo wp_dropdown_pages(
 			array(
 				'echo'              => 0,
@@ -26,7 +27,7 @@ $field_id = $field['name'] . '-' . rand( 0, 1000 );
 		);
 		?>
 	<script>
-		var element = document.getElementById('<?php echo $field_id; ?>');
+		var element = document.getElementById('<?php echo esc_attr( $field_id ); ?>');
 
 		if ( ! element.value ) {
 			element.options[0].setAttribute('selected','selected');

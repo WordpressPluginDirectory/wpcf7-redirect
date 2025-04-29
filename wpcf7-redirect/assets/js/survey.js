@@ -1,26 +1,19 @@
 /**
- * Initialize the formbricks survey.
- * 
- * @see https://github.com/formbricks/setup-examples/tree/main/html
+ * Handle special cases for survey initialization.
  */
-
-function initFormbricks() {
- 	window?.tsdk_formbricks?.init?.({
-		environmentId: "clza2w309000x2hkas1nydy4s",
-		apiHost: "https://app.formbricks.com",
-		...(window?.wpcf7rSurveyData ?? {}),
-	});
-}
-
-function handleSurveyData() {
-	// Skip formbricks init event for other cf7 tabs.
-	if ( document.querySelector('#redirect-panel-tab') ) {
-		document
-		.querySelector( '#contact-form-editor-tabs li#redirect-panel-tab' )
-		.addEventListener( 'click', initFormbricks );
+function configureSurveyTabListener() {
+	/**
+	 * When the page is `page=wpcf7`, trigger the survey only the user is in our own tab `Actions`.
+	 */
+	if ( ! document.querySelector('#redirect-panel-tab') ) {
 		return;
 	}
-
-	initFormbricks();
+	
+	window.dispatchEvent(new CustomEvent('themeisle:survey:trigger:cancel'));
+	document
+		.querySelector( '#contact-form-editor-tabs li#redirect-panel-tab' )
+		.addEventListener( 'click', () => {
+			window.tsdk_formbricks?.init({});
+		} );
 }
-window.addEventListener('themeisle:survey:loaded', handleSurveyData);
+window.addEventListener('themeisle:survey:loaded', configureSurveyTabListener);

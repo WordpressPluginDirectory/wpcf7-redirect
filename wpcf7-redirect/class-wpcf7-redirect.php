@@ -20,6 +20,8 @@
  */
 class Wpcf7_Redirect {
 
+	const LEGACY_FIRE_SCRIPT_OPTION_FLAG = 'wpcf7-fire-script-legacy-user-flag';
+
 	/**
 	 * Instance of the main plugin class object.
 	 *
@@ -38,236 +40,149 @@ class Wpcf7_Redirect {
 		add_action( 'plugins_loaded', array( $this, 'notice_to_remove_old_plugin' ) );
 
 		add_filter( 'redirection_for_contact_form_7_about_us_metadata', array( $this, 'about_page' ) );
-		add_action( 'admin_menu', array( $this, 'create_plugin_addons_upsell' ) );
-		add_action( 'admin_head', array( $this, 'handle_upgrade_link' ) );
-        add_filter( 'wpcf7_get_extensions', array( $this, 'filter_deprecated_addons' ) );
+		add_action( 'admin_menu', array( $this, 'handle_upgrade_link' ) );
+		add_action( 'admin_menu', array( $this, 'register_dashboard' ) );
+		add_filter( 'wpcf7_get_extensions', array( $this, 'filter_deprecated_addons' ) );
 
-		add_filter( 'redirection_for_contact_form_7_float_widget_metadata', array( $this, 'float_widget_data' )	);
-		add_filter( 'wpcf7_redirect_float_widget_metadata', array( $this, 'float_widget_data' )	);
+		add_filter( 'redirection_for_contact_form_7_float_widget_metadata', array( $this, 'float_widget_data' ) );
+		add_filter( 'wpcf7_redirect_float_widget_metadata', array( $this, 'float_widget_data' ) );
+
+		$dashboard = new \WPCF7R_Dashboard();
+		$dashboard->register_endpoints();
+		$dashboard->load_update_hooks();
+		$dashboard->redirect_to_license_page_notices();
+
+		$save_file_helper = new \WPCF7R_Save_File();
+		$save_file_helper->register_endpoints();
+		$save_file_helper->register_file_deletion();
+
+		$this->mark_legacy_users();
+
+		WPCF7r_Survey::get_instance()->init();
 	}
 
 	/**
-     * Add script for upgrade link to open in new tab and preserve the color.
+	 * Add style to highlight the upgrade sub-menu page.
+	 *
 	 * @return void
 	 */
-    public function handle_upgrade_link() {
-        $url = tsdk_utmify( wpcf7_redirect_upgrade_url(), 'admin', 'admin_menu' );
-	    echo '<script type="text/javascript">
-        jQuery(document).ready( function($) {
-            $( "ul#adminmenu a[href$=\''. $url . '\']" ).attr( \'target\', \'_blank\' );
-            $( "ul#adminmenu a[href$=\''. $url . '\']" ).css( \'color\', \'#adff2e\' );
-        });
-        </script>';
-    }
+	public function handle_upgrade_link() {
+
+		wp_register_style( 'wpcf7-admin-menu-upgrade', false );
+		wp_enqueue_style( 'wpcf7-admin-menu-upgrade' );
+
+		$custom_css = 'ul#adminmenu a[href*="wpcf7r-upgrade"] { color: #adff2e; }';
+		wp_add_inline_style( 'wpcf7-admin-menu-upgrade', $custom_css );
+	}
 
 	/**
-     * Get float widget data.
+	 * Get float widget data.
+	 *
 	 * @return array
 	 */
 	public function float_widget_data() {
-        $has_legacy = apply_filters( 'wpcf7r_legacy_used', false );
+		$has_legacy = apply_filters( 'wpcf7r_legacy_used', false );
 
 		return array(
-			'nice_name'          => 'Redirect for Contact Form 7',
-			'logo'               => esc_url_raw( WPCF7_PRO_REDIRECT_BUILD_PATH . 'images/wpcf7-help.png' ),
-			'primary_color'      => '#4580ff',
-			'pages'              => array( 'contact_page_wpcf7r-addons-upsell', 'contact_page_wpc7_redirect' ),
-			'has_upgrade_menu'   => false,
+			'nice_name'            => __( 'Redirect for Contact Form 7', 'wpcf7-redirect' ),
+			'logo'                 => esc_url_raw( WPCF7_PRO_REDIRECT_BUILD_PATH . 'images/wpcf7-help.png' ),
+			'primary_color'        => '#4580ff',
+			'pages'                => array( 'toplevel_page_wpcf7r-dashboard' ),
+			'has_upgrade_menu'     => false,
 			'premium_support_link' => $has_legacy ? 'https://users.freemius.com/login' : '',
-			'upgrade_link'       => tsdk_utmify( '', 'floatWidget' ),
-			'documentation_link' => tsdk_utmify( 'https://docs.themeisle.com/collection/2014-redirection-for-contact-form-7', 'floatWidget' )
+			'upgrade_link'         => tsdk_utmify( wpcf7_redirect_upgrade_url(), 'floatWidget' ),
+			'documentation_link'   => tsdk_utmify( 'https://docs.themeisle.com/collection/2014-redirection-for-contact-form-7', 'floatWidget' ),
 		);
 	}
 
 	/**
-     * Filter addons that are deprecated.
-     *
+	 * Filter addons that are deprecated.
+	 *
 	 * @param array $addons List of addons.
 	 *
 	 * @return array
 	 */
-    public function filter_deprecated_addons( $addons ) {
-        $deprecated = [
-            'wpcf7r-custom-errors',
-            'wpcf7r-login',
-            'wpcf7r-register',
-            'wpcf7r-monday',
-            'wpcf7r-slack',
-            'wpcf7r-eliminate-duplicates',
-        ];
+	public function filter_deprecated_addons( $addons ) {
+		$deprecated = array(
+			'wpcf7r-custom-errors',
+			'wpcf7r-login',
+			'wpcf7r-register',
+			'wpcf7r-monday',
+			'wpcf7r-slack',
+			'wpcf7r-eliminate-duplicates',
+		);
 
-        return array_filter( $addons, function( $key ) use ( $deprecated ) {
-            return ! in_array( $key, $deprecated );
-        }, ARRAY_FILTER_USE_KEY );
-    }
+		return array_filter(
+			$addons,
+			function ( $key ) use ( $deprecated ) {
+				return ! in_array( $key, $deprecated );
+			},
+			ARRAY_FILTER_USE_KEY
+		);
+	}
 
 	/**
-     * Create plugin addons upsell page.
-     *
-	 * @return void
+	 * Register the Dashboard menu and load its dependencies.
 	 */
-	public function create_plugin_addons_upsell() {
-		$page_title = __( '↳ Add-Ons', 'wpcf7-redirect' );
+	public function register_dashboard() {
+		$page_title = __( 'Redirection Dashboard', 'wpcf7-redirect' );
+		$menu_title = __( 'CF7 Redirection', 'wpcf7-redirect' );
 		$capability = 'manage_options';
-		$slug	    = 'wpcf7r-addons-upsell';
-		$callback   = array( $this, 'plugin_addons_upsell_page_content' );
+		$menu_slug  = 'wpcf7r-dashboard';
+		$callback   = array( $this, 'render_dashboard_page' );
+		$icon_url   = esc_url_raw( WPCF7_PRO_REDIRECT_BASE_URL . 'assets/images/logo.svg' ); // TODO: add icons when we get the svg.
+		$position   = 30;
 
-		$hook = add_submenu_page(
-			'wpcf7',
+		$hook = add_menu_page(
 			$page_title,
-			$page_title,
+			$menu_title,
 			$capability,
-			$slug,
-			$callback
-		);
-
-		add_action( "load-$hook", array( WPCF7r_Survey::get_instance(), 'init' ) );
-
-        if ( ! $this->check_upgrade_available() ) {
-            return;
-        }
-        $upgrade_page_title = __( '↳ Upgrade ➤', 'wpcf7-redirect' );
-		$upgrade_slug       = 'wpcf7r-upgrade';
-		add_submenu_page(
-			'wpcf7',
-			$upgrade_page_title,
-			$upgrade_page_title,
-			$capability,
-			$upgrade_slug,
+			$menu_slug,
 			$callback,
-            5
+			$icon_url,
+			$position
 		);
 
-        global $submenu;
-        $submenu['wpcf7'][5] = array( $upgrade_page_title, $capability, tsdk_utmify( wpcf7_redirect_upgrade_url(), 'admin', 'admin_menu' ) );
+		add_action(
+			"load-$hook",
+			function () {
+				( new \WPCF7R_Dashboard() )->load_resources();
+			}
+		);
+
+		$dashboard_title = __( 'Dashboard', 'wpcf7-redirect' );
+		add_submenu_page(
+			'wpcf7r-dashboard',
+			$dashboard_title,
+			$dashboard_title,
+			$capability,
+			'wpcf7r-dashboard',
+			$callback,
+			0
+		);
 	}
 
 	/**
-     * Plugin addons upsell page content.
+	 * Render dashboard page content.
+	 *
 	 * @return void
 	 */
-	public function plugin_addons_upsell_page_content() {
-        $addons = wpcf7_get_extensions();
+	public function render_dashboard_page() {
 		?>
-        <style>
-            html, body {
-                margin: 0;
-                padding: 0;
-            }
-            .wpcf7r-addons {
-                padding: 20px;
-            }
-            .wpcf7r-extensions-wrap {
-                display: flex;
-                flex-direction: row;
-                flex-wrap: wrap;
-                align-content: flex-start;
-                justify-content: start;
-                align-items: stretch;
-                gap: 12px;
-            }
-            .wpcf7r-extensions-wrap .extension {
-                display: flex;
-                flex-direction: column;
-                align-items: flex-start;
-                justify-content: center;
-                background-color: #FFF;
-                padding: 12px;
-                width: 300px;
-            }
-            .wpcf7r-extensions-wrap .extension .title {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-            .wpcf7r-extensions-wrap .extension .title img {
-                width: 32px;
-            }
-			.wpcf7r-banner:has(.tsdk-banner-cta) {
-				margin-bottom: 40px;
-			}
-        </style>
-		<section class="wpcf7r-addons">
-			<div id="tsdk_banner" class="wpcf7r-banner"></div>
-            <h1><?php _e( 'Redirection For Contact Form 7 Addons', 'wpcf7-redirect' ); ?></h1>
-            <div id="wpcf7r-extensions" class="wpcf7r-extensions-wrap">
-                <?php
-                foreach ( $addons as $addon ) {
-                    ?>
-                    <div class="extension">
-                        <span class="title">
-                            <span><img src="<?php echo esc_url( $addon['icon'] ); ?>" alt="<?php echo esc_attr( $addon['name'] ); ?>"></span>
-                            <h3><?php echo esc_attr( $addon['title'] ); ?></h3>
-                        </span>
-                        <p><?php echo esc_attr( $addon['description'] ); ?></p>
-	                    <?php if ( ! isset( $addon['active'] ) || ! $addon['active'] ) : ?>
-                            <a href="<?php echo tsdk_utmify( wpcf7_redirect_upgrade_url(), 'wpcf7r-upsell', 'addons' ); ?>" target="_blank" class="button button-primary"><?php _e( 'Get Addon', 'wpcf7-redirect' ); ?></a>
-	                    <?php else: ?>
-                            <a href="<?php echo esc_url( network_admin_url( 'options-general.php' ) ); ?>" target="_self" class="button button-secondary"><?php _e( 'License', 'wpcf7-redirect' ); ?></a>
-		                <?php endif; ?>
-                    </div>
-                    <?php
-                }
-                ?>
-            </div>
-		</section>
+		<div id="redirect-dashboard"></div>
 		<?php
-		do_action( 'admin_print_footer_scripts' );
-        do_action( 'in_admin_footer' );
-        exit;
-	}
-
-    /**
-     * Check if upgrade is available
-     *
-     * @return bool
-     */
-	private function check_upgrade_available() {
-		$available_addons = [
-			'wpcf7r-api',
-			'wpcf7r-conditional-logic',
-			'wpcf7r-create-post',
-			'wpcf7r-hubspot',
-			'wpcf7r-mailchimp',
-			'wpcf7r-paypal',
-			'wpcf7r-pdf',
-			'wpcf7r-popup',
-			'wpcf7r-salesforce',
-			'wpcf7r-stripe',
-			'wpcf7r-twilio',
-		];
-
-        $display_upgrade = true;
-
-        $plugins = get_plugins();
-        $plugins = array_keys( $plugins );
-
-        // if an addon is present default to not display the upgrade link.
-        foreach ( $available_addons as $addon ) {
-            if ( in_array( $addon . '/init.php', $plugins, true ) ) {
-                $display_upgrade = false;
-                break;
-            }
-        }
-
-		foreach ( $available_addons as $addon ) {
-			if ( 'valid' !== tsdk_lstatus( WP_PLUGIN_DIR . '/' . $addon. '/init.php' ) ) {
-				return true;
-			}
-		}
-		return $display_upgrade;
 	}
 
 	/**
-     * Add the about page.
-     *
+	 * Add the about page.
+	 *
 	 * @return array
 	 */
 	public function about_page() {
-		return [
-			'location'         => 'wpcf7',
-			'logo'             => esc_url_raw( WPCF7_PRO_REDIRECT_BUILD_PATH . 'images/icon-128x128.png' )
-		];
+		return array(
+			'location' => 'wpcf7r-dashboard',
+			'logo'     => esc_url_raw( WPCF7_PRO_REDIRECT_BUILD_PATH . 'images/icon-128x128.png' ),
+		);
 	}
 
 	/**
@@ -312,5 +227,29 @@ class Wpcf7_Redirect {
 		define( 'WPCF7_PRO_REDIRECT_BUILD_PATH', WPCF7_PRO_REDIRECT_BASE_URL . 'build/' );
 
 		define( 'QFORM_BASE', WPCF7_PRO_REDIRECT_BASE_PATH . 'form/' );
+	}
+
+	/**
+	 * Mark the legacy users.
+	 */
+	public function mark_legacy_users() {
+		$fire_script_flag = get_option( self::LEGACY_FIRE_SCRIPT_OPTION_FLAG, false );
+		if ( false === $fire_script_flag && defined( 'WPCF7_BASENAME' ) ) {
+			$plugin_install_option    = str_replace( '-', '_', WPCF7_BASENAME );
+			$plugin_install_timestamp = get_option( $plugin_install_option . '_install', false );
+
+			if ( false === $plugin_install_timestamp ) {
+				update_option( self::LEGACY_FIRE_SCRIPT_OPTION_FLAG, 'no' );
+			} else {
+				$install_date = $plugin_install_timestamp;
+				$one_week_ago = time() - WEEK_IN_SECONDS;
+
+				if ( $install_date < $one_week_ago ) {
+					update_option( self::LEGACY_FIRE_SCRIPT_OPTION_FLAG, 'yes' );
+				} else {
+					update_option( self::LEGACY_FIRE_SCRIPT_OPTION_FLAG, 'no' );
+				}
+			}
+		}
 	}
 }

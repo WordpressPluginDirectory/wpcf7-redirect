@@ -6,13 +6,15 @@
 defined( 'ABSPATH' ) || exit;
 ?>
 
-<div class="field-wrap field-wrap-<?php echo $field['name']; ?> <?php echo isset( $field['class'] ) ? $field['class'] : ''; ?>">
+<div class="field-wrap field-wrap-<?php echo esc_attr( $field['name'] ); ?> <?php echo isset( $field['class'] ) ? esc_attr( $field['class'] ) : ''; ?>">
 	<?php if ( isset( $field['title'] ) && $field['title'] ) : ?>
-		<label for="wpcf7-redirect-<?php echo $field['name']; ?>">
+		<label for="wpcf7-redirect-<?php echo esc_attr( $field['name'] ); ?>">
 			<h3><?php echo esc_html( $field['label'] ); ?></h3>
 			&nbsp;
 			<?php if ( isset( $field['sub_title'] ) && $field['sub_title'] ) : ?>
-				<label for="wpcf7-redirect-<?php echo $field['name']; ?>"><?php echo esc_html( $field['sub_title'] ); ?></label>
+				<label for="wpcf7-redirect-<?php echo esc_attr( $field['name'] ); ?>">
+					<?php echo wp_kses_post( $field['sub_title'] ); ?>
+				</label>
 				<br/>&nbsp;
 			<?php endif; ?>
 		</label>
@@ -23,20 +25,27 @@ defined( 'ABSPATH' ) || exit;
 			<tr>
 				<td>
 					<strong>
-						<?php _e( 'Form fields', 'wpcf7-redirect' ); ?>
+						<?php esc_html_e( 'Form fields', 'wpcf7-redirect' ); ?>
 					</strong>
 				</td>
 				<td class="tags-map-api-key">
 					<strong>
-						<?php _e( 'Field Label', 'wpcf7-redirect' ); ?>
+						<?php esc_html_e( 'Field Label', 'wpcf7-redirect' ); ?>
 					</strong>
-					<?php echo cf7r_tooltip( __( 'The field label', 'wpcf7-redirect' ) ); ?>
+					<?php echo wp_kses_post( cf7r_tooltip( __( 'Set a custom label name for this field', 'wpcf7-redirect' ) ) ); ?>
 				</td>
 				<td>
 					<strong>
-						<?php _e( 'Display on leads list', 'wpcf7-redirect' ); ?>
+						<?php esc_html_e( 'Display on Entries list', 'wpcf7-redirect' ); ?>
 					</strong>
-					<?php echo cf7r_tooltip( __( 'Should this field appear on the leads list', 'wpcf7-redirect' ) ); ?>
+					<?php
+					echo wp_kses_post(
+						cf7r_tooltip(
+							__( 'Display this field on Entries.', 'wpcf7-redirect' )
+							. ' ' . __( 'Default is: show.', 'wpcf7-redirect' )
+						)
+					);
+					?>
 				</td>
 			</tr>
 			<?php
@@ -50,18 +59,23 @@ defined( 'ABSPATH' ) || exit;
 					$appear    = isset( $field['value'][ $mail_tag->name ]['appear'] ) && $field['value'][ $mail_tag->name ]['appear'] ? true : false;
 					?>
 				<tr>
-					<td class="<?php echo $mail_tag->name; ?>"><?php echo $mail_tag->name; ?></td>
+					<td class="<?php echo esc_attr( $mail_tag->name ); ?>"><?php echo esc_html( $mail_tag->name ); ?></td>
 					<td class="tags-map-api-key">
-						<input type="text" id="sf-<?php echo $mail_tag->name; ?>"
-						name="wpcf7-redirect<?php echo $prefix; ?>[<?php echo $field['name']; ?>][<?php echo $mail_tag->name; ?>][tag]"
-						class="large-text"
-						value="<?php echo $tag_value; ?>" />
+						<input
+							type="text"
+							id="sf-<?php echo esc_attr( $mail_tag->name ); ?>"
+							name="wpcf7-redirect<?php echo esc_attr( $prefix ); ?>[<?php echo esc_attr( $field['name'] ); ?>][<?php echo esc_attr( $mail_tag->name ); ?>][tag]"
+							class="large-text"
+							value="<?php echo esc_html( $tag_value ); ?>"
+						/>
 					</td>
 					<td>
-						<input type="checkbox"
-						name="wpcf7-redirect<?php echo $prefix; ?>[<?php echo $field['name']; ?>][<?php echo $mail_tag->name; ?>][appear]"
-						value="1"
-						<?php checked( $appear, 1 ); ?> />
+						<input
+							type="checkbox"
+							name="wpcf7-redirect<?php echo esc_attr( $prefix ); ?>[<?php echo esc_attr( $field['name'] ); ?>][<?php echo esc_attr( $mail_tag->name ); ?>][appear]"
+							value="1"
+							<?php checked( $appear, 1 ); ?>
+						/>
 					</td>
 				</tr>
 					<?php

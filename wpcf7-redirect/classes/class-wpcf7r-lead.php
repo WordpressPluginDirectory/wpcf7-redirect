@@ -3,18 +3,14 @@
  * Class WPCF7R_Lead - Container class that handles lead
  *
  * @package wpcf7-redirect
- * @since 1.0.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Class WPCF7R_Lead
- *
- * @since 1.0.0
  */
 class WPCF7R_Lead {
-
 	/**
 	 * Post ID
 	 *
@@ -25,7 +21,7 @@ class WPCF7R_Lead {
 	/**
 	 * Post object
 	 *
-	 * @var object
+	 * @var \WP_Post|int
 	 */
 	public $post;
 
@@ -33,7 +29,7 @@ class WPCF7R_Lead {
 	 * Create an instance
 	 * Save the post id and post reference
 	 *
-	 * @param string $post_id - The post ID.
+	 * @param int|\WP_Post $post_id The post ID or post object.
 	 */
 	public function __construct( $post_id = '' ) {
 		if ( is_object( $post_id ) ) {
@@ -48,7 +44,8 @@ class WPCF7R_Lead {
 	/**
 	 * Update submitted form data
 	 *
-	 * @param  array $args - The form data.
+	 * @param array<string, mixed> $args The form data.
+	 * @return void
 	 */
 	public function update_lead_data( $args = array() ) {
 		if ( $args ) {
@@ -60,6 +57,8 @@ class WPCF7R_Lead {
 
 	/**
 	 * Return the lead ID
+	 *
+	 * @return int
 	 */
 	public function get_id() {
 		return $this->post_id;
@@ -67,6 +66,8 @@ class WPCF7R_Lead {
 
 	/**
 	 * Get the post title
+	 *
+	 * @return string
 	 */
 	public function get_title() {
 		return get_the_title( $this->get_id() );
@@ -75,7 +76,8 @@ class WPCF7R_Lead {
 	/**
 	 * Update the type of lead
 	 *
-	 * @param  string $lead_type - The lead type.
+	 * @param string $lead_type The lead type.
+	 * @return void
 	 */
 	public function update_lead_type( $lead_type ) {
 		update_post_meta( $this->post_id, 'lead_type', $lead_type );
@@ -84,9 +86,10 @@ class WPCF7R_Lead {
 	/**
 	 * Save the action reference and results
 	 *
-	 * @param int -    $action_id - The action ID.
-	 * @param string - $action_type - The action type.
-	 * @param array -  $action_results - The action results.
+	 * @param int    $action_id      The action ID.
+	 * @param string $action_type    The action type.
+	 * @param array  $action_results The action results.
+	 * @return void
 	 */
 	public function add_action_debug( $action_id, $action_type, $action_results ) {
 		$action_details = array(
@@ -97,14 +100,18 @@ class WPCF7R_Lead {
 	}
 
 	/**
-	 * Get the creation post of the lead
+	 * Get the creation date of the lead
+	 *
+	 * @return string
 	 */
 	public function get_date() {
 		return get_the_date( get_option( 'date_format' ), $this->post_id );
 	}
 
 	/**
-	 * Get the creation post of the lead
+	 * Get the creation time of the lead
+	 *
+	 * @return string
 	 */
 	public function get_time() {
 		return get_the_date( get_option( 'time_format' ), $this->post_id );
@@ -112,6 +119,8 @@ class WPCF7R_Lead {
 
 	/**
 	 * Get the lead type
+	 *
+	 * @return string
 	 */
 	public function get_lead_type() {
 		return get_post_meta( $this->post_id, 'lead_type', true );
@@ -120,8 +129,7 @@ class WPCF7R_Lead {
 	/**
 	 * Save the user submitted files
 	 *
-	 * @param array $files - The files.
-	 *
+	 * @param array<string, mixed> $files The files array.
 	 * @return void
 	 */
 	public function update_lead_files( $files ) {
@@ -130,6 +138,8 @@ class WPCF7R_Lead {
 
 	/**
 	 * Get lead fields
+	 *
+	 * @return array<string, array<string, mixed>>
 	 */
 	public function get_lead_fields() {
 		$action_id = get_post_meta( $this->post_id, 'cf7_action_id', true );
@@ -140,7 +150,6 @@ class WPCF7R_Lead {
 		$action = WPCF7R_Action::get_action( (int) $action_id );
 
 		if ( $action_id && $action ) {
-
 			$fields = maybe_unserialize( $action->get( 'leads_map' ) );
 
 			foreach ( $fields as $field_key => $field_value ) {

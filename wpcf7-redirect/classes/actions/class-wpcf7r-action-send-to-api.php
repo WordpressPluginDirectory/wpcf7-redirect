@@ -1,12 +1,22 @@
 <?php
 /**
  * Class WPCF7R_Action_api_url_request file
+ *
+ * @package Redirection_For_Contact_Form_7
  */
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Class for handling API requests from Contact Form 7
+ */
 class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 
+	/**
+	 * Constructor
+	 *
+	 * @param object $post The post object.
+	 */
 	public function __construct( $post ) {
 		$this->action_id = $post->ID;
 	}
@@ -14,7 +24,8 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 	/**
 	 * The handler that will send the data to the api
 	 *
-	 * @param $args
+	 * @param array $args Arguments for the API request.
+	 * @return array Response and record data.
 	 */
 	public function qs_cf7_send_data_to_api( $args ) {
 		$this->defaults  = $args['tags_defaults'];
@@ -42,7 +53,7 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 		$this->post = $wpcf7;
 		$this->clear_error_log( $this->post->id() );
 
-		// always save last call results for debugging
+		// Always save last call results for debugging.
 		$record        = $this->get_record( $submission, $tags_map, $record_type, $template );
 		$record['url'] = $base_url;
 
@@ -50,14 +61,19 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 			do_action( 'qs_cf7_api_before_sent_to_api', $record );
 			$response = $this->send_lead( $record, true, $input_type, $record_type, $tags_map );
 			do_action( 'qs_cf7_api_after_sent_to_api', $record, $response );
-
 		} else {
-			$this->log_result( __( 'Missing url' ), '' );
+			$this->log_result( __( 'Missing url', 'wpcf7-redirect' ), '' );
 		}
 
 		return array( $response, $record );
 	}
 
+	/**
+	 * Log API request result
+	 *
+	 * @param array $record The record data.
+	 * @param mixed $response The API response.
+	 */
 	public function log_result( $record, $response ) {
 		if ( isset( $record['url'] ) ) {
 			update_post_meta( $this->action_id, 'api_debug_url', $record['url'] );
@@ -74,20 +90,23 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 
 	/**
 	 * Clear error log
+	 *
+	 * @param int $post_id The post ID.
 	 */
-	function clear_error_log( $post_id ) {
+	public function clear_error_log( $post_id ) {
 		delete_post_meta( $post_id, 'api_errors' );
 	}
 
 	/**
 	 * Convert the form keys to the API keys according to the mapping instructions
 	 *
-	 * @param $submission
-	 * @param $tags_map
-	 * @param string     $type
-	 * @param string     $template
+	 * @param object $submission Form submission object.
+	 * @param array  $tags_map Array of form tags to API field mapping.
+	 * @param string $type Record type (params, xml, json).
+	 * @param string $template Template for structured data.
+	 * @return array Record data.
 	 */
-	function get_record( $submission, $tags_map, $type = 'params', $template = '' ) {
+	public function get_record( $submission, $tags_map, $type = 'params', $template = '' ) {
 		$submited_data = $submission->get_posted_data();
 
 		if ( 'xml' === $type || 'json' === $type ) {
@@ -96,7 +115,7 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 			foreach ( $tags_map as $form_key => $qs_cf7_form_key ) {
 				if ( is_array( $qs_cf7_form_key ) ) {
 
-					// arrange checkbox arrays
+					// Arrange checkbox arrays.
 					if ( isset( $submited_data[ $form_key ] ) ) {
 						$value = apply_filters( 'set_record_value', $submited_data[ $form_key ], $qs_cf7_form_key, $form_key );
 						$value = is_array( $value ) ? implode( ',', $value ) : $value;
@@ -105,13 +124,13 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 					$value = isset( $submited_data[ $form_key ] ) ? $submited_data[ $form_key ] : '';
 					$value = apply_filters( 'set_record_value', $value, $qs_cf7_form_key, $form_key );
 
-					// flattan radio
+					// Flatten radio.
 					if ( is_array( $value ) ) {
 						$value = reset( $value );
 					}
 				}
 
-				// set defaults
+				// Set defaults.
 
 				if ( ! $value ) {
 					if ( isset( $this->defaults[ $form_key ] ) ) {
@@ -131,7 +150,6 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 							}
 
 							$value = implode( ',', $value );
-
 						} else {
 							$value = $this->defaults[ $form_key ];
 						}
@@ -140,7 +158,7 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 
 				if ( isset( $this->functions[ $form_key ] ) && $this->functions[ $form_key ] ) {
 
-					// dont call the function again on arrays (checkvoxes)
+					// Don't call the function again on arrays (checkboxes).
 
 					if ( ! is_array( $this->functions[ $form_key ] ) ) {
 						$value = $this->run_function( $this->functions[ $form_key ], $value, $form_key );
@@ -151,18 +169,17 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 				$template = str_replace( "[{$form_key}]", $value, $template );
 			}
 
-			// replace special mail tags
+			// Replace special mail tags.
 
 			foreach ( WPCF7R_Form::get_special_mail_tags() as $mail_tag ) {
 				$special  = apply_filters( 'wpcf7_special_mail_tags', null, $mail_tag->field_name(), $template, $mail_tag );
 				$template = str_replace( "[{$mail_tag->field_name()}]", $special, $template );
 			}
 
-			// clean unchanged tags
+			// Clean unchanged tags.
 
 			$template         = $this->replace_tags( $template );
 			$record['fields'] = $template;
-
 		} else {
 			$record = $this->get_record_by_tag_map( $submited_data, $tags_map );
 			$record = $this->set_defaults_and_run_functions( $record, $tags_map );
@@ -176,8 +193,9 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 	/**
 	 * Create a record object
 	 *
-	 * @param $submited_data
-	 * @param $tags_map
+	 * @param array $submited_data Form submitted data.
+	 * @param array $tags_map Form tags mapping.
+	 * @return array Record data.
 	 */
 	public function get_record_by_tag_map( $submited_data, $tags_map ) {
 
@@ -187,7 +205,7 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 			if ( $qs_cf7_form_key ) {
 				if ( is_array( $qs_cf7_form_key ) ) {
 
-					// arrange checkbox arrays
+					// Arrange checkbox arrays.
 					foreach ( $submited_data[ $form_key ] as $value ) {
 						if ( $value ) {
 							if ( 'lead_id' === $form_key ) {
@@ -200,7 +218,7 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 				} else {
 					$value = isset( $submited_data[ $form_key ] ) ? $submited_data[ $form_key ] : '';
 
-					// flattan radio
+					// Flatten radio.
 					if ( is_array( $value ) && count( $value ) === 1 ) {
 						$value = reset( $value );
 					}
@@ -219,10 +237,14 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 
 	/**
 	 * Set the fields defaults
+	 *
+	 * @param array $record Record data.
+	 * @param array $tags_map Form tags mapping.
+	 * @return array Modified record with defaults and functions applied.
 	 */
 	public function set_defaults_and_run_functions( $record, $tags_map ) {
 
-		// set default values
+		// Set default values.
 
 		if ( $this->defaults && array_values( $this->defaults ) ) {
 			foreach ( $this->defaults as $default_field_key => $default_value ) {
@@ -233,7 +255,7 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 			}
 		}
 
-		// run functions on values
+		// Run functions on values.
 
 		if ( $this->functions && array_values( $this->functions ) ) {
 			foreach ( $this->functions as $field_key => $function ) {
@@ -252,12 +274,14 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 	/**
 	 * Run custom functions on user submission
 	 *
-	 * @param $function
-	 * @param $field_value
+	 * @param string $func_name Function name to run.
+	 * @param mixed  $field_value Field value to process.
+	 * @param string $key Field key.
+	 * @return mixed Processed value.
 	 */
-	public function run_function( $function, $field_value, $key ) {
+	public function run_function( $func_name, $field_value, $key ) {
 
-		$function = WPCF7r_Utils::get_available_text_functions( $function, 'all' );
+		$function = WPCF7r_Utils::get_available_text_functions( $func_name, 'all' );
 
 		if ( $function ) {
 			$class  = $function[0];
@@ -268,7 +292,7 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 			if ( $file_path ) {
 				$field_value = $file_path;
 			}
-			// check if this is a file
+			// Check if this is a file.
 
 			return call_user_func( array( $class, $method ), $field_value, $key );
 		}
@@ -276,22 +300,30 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 		return $field_value;
 	}
 
+	/**
+	 * Get file path for a given key
+	 *
+	 * @param string $key Field key.
+	 * @return string|null File path or null.
+	 */
 	private function get_file_path( $key ) {
 		if ( $this->files ) {
 			foreach ( $this->files as $file_key => $files ) {
-				if ( $key == $file_key ) {
+				if ( $key === $file_key ) {
 					return reset( $files );
 				}
 			}
 		}
+		return null;
 	}
 	/**
 	 * Send the lead using wp_remote
 	 *
-	 * @param $record
-	 * @param boolean $debug
-	 * @param string  $method
-	 * @param string  $record_type
+	 * @param array   $record Record data to send.
+	 * @param boolean $debug Whether to debug the request.
+	 * @param string  $method HTTP method (GET, POST, etc.).
+	 * @param string  $record_type Type of record (params, xml, json).
+	 * @return array|WP_Error API response.
 	 */
 	private function send_lead( $record, $debug = false, $method = 'GET', $record_type = 'params' ) {
 
@@ -398,7 +430,8 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 	/**
 	 * Get XML
 	 *
-	 * @param $lead
+	 * @param mixed $lead Lead data for XML conversion.
+	 * @return SimpleXMLElement|WP_Error XML object or error.
 	 */
 	private function get_xml( $lead ) {
 
@@ -413,7 +446,6 @@ class WPCF7R_Action_Send_To_Api extends WPCF7R_Action {
 					'xml',
 					__( 'XML Structure is incorrect', 'wpcf7-redirect' )
 				);
-
 			}
 		}
 

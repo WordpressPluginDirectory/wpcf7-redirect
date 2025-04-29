@@ -116,20 +116,27 @@ class WPCF7r_Utils {
 	 */
 	public function duplicate_form_support( $new_cf7 ) {
 
-		if ( isset( $_POST['wpcf7-copy'] ) && 'Duplicate' === $_POST['wpcf7-copy'] || ( isset( $_GET['action'] ) && 'copy' === $_GET['action'] ) ) {
-
-			$original_post_id = isset( $_POST['post_ID'] ) ? (int) $_POST['post_ID'] : (int) $_GET['post'];
+		if (
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			( isset( $_POST['wpcf7-copy'] ) && 'Duplicate' === sanitize_text_field( wp_unslash( $_POST['wpcf7-copy'] ) ) ) ||
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			( isset( $_GET['action'] ) && 'copy' === sanitize_text_field( wp_unslash( $_GET['action'] ) ) )
+		) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$original_post_id = isset( $_POST['post_ID'] ) ? (int) $_POST['post_ID'] : ( isset( $_GET['post'] ) ? (int) $_GET['post'] : 0 );
 
 			$original_cf7 = get_cf7r_form( $original_post_id );
 
 			$original_action_posts = $original_cf7->get_actions( 'default' );
 
-			if ( $original_action_posts ) {
-				foreach ( $original_action_posts as $original_action_post ) {
-					$new_post_id = $this->duplicate_post( $original_action_post->action_post );
+			if ( ! is_array( $original_action_posts ) ) {
+				return;
+			}
 
-					update_post_meta( $new_post_id, 'wpcf7_id', $new_cf7->id() );
-				}
+			foreach ( $original_action_posts as $original_action_post ) {
+				$new_post_id = $this->duplicate_post( $original_action_post->action_post );
+
+				update_post_meta( $new_post_id, 'wpcf7_id', $new_cf7->id() );
 			}
 		}
 	}
@@ -140,22 +147,24 @@ class WPCF7r_Utils {
 	 * @param int $post_id - the form id.
 	 */
 	public function delete_all_form_actions( $post_id ) {
-		if ( get_post_type( $post_id ) === 'wpcf7_contact_form' ) {
+		if ( get_post_type( $post_id ) !== 'wpcf7_contact_form' ) {
+			return;
+		}
 
-			$wpcf7r = get_cf7r_form( $post_id );
+		$wpcf7r       = get_cf7r_form( $post_id );
+		$action_posts = $wpcf7r->get_actions( 'default' );
 
-			$action_posts = $wpcf7r->get_actions( 'default' );
+		if ( ! is_array( $action_posts ) ) {
+			return;
+		}
 
-			if ( $action_posts ) {
-				foreach ( $action_posts as $action_post ) {
-					wp_delete_post( $action_post->get_id() );
-				}
-			}
+		foreach ( $action_posts as $action_post ) {
+			wp_delete_post( $action_post->get_id() );
 		}
 	}
 
 	/**
-	 * Dupplicate contact form and all its actions
+	 * Duplicate contact form and all its actions
 	 *
 	 * @param object $action - the action object.
 	 */
@@ -167,7 +176,7 @@ class WPCF7r_Utils {
 		$current_user    = wp_get_current_user();
 		$new_post_author = $current_user->ID;
 		$post_id         = $action->ID;
-		
+
 		// if post data exists, create the post duplicate.
 		if ( isset( $action ) && null !== $action ) {
 			// new post data array.
@@ -202,9 +211,12 @@ class WPCF7r_Utils {
 			}
 
 			// duplicate all post meta just in two SQL queries.
-			$sql = $wpdb->prepare( "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id='%s'", $post_id );
-
-			$post_meta_infos = $wpdb->get_results( $sql );
+			$post_meta_infos = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d",
+					$post_id
+				)
+			);
 
 			foreach ( $post_meta_infos as $meta_info ) {
 				if ( '_wp_old_slug' === $meta_info->meta_key ) {
@@ -219,13 +231,30 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Set actions order
+	 * Set the menu order for actions.
+	 *
+	 * This method updates the menu_order column in the wp_posts table for a set of post IDs.
+	 * The order is determined by the data sent via POST request.
+	 *
+	 * @global wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return void|false Returns false if:
+	 *                    - Current user cannot edit contact forms
+	 *                    - Invalid nonce
+	 *                    - No order data is provided
+	 *                    - Data is not an array
+	 *                    Otherwise, exits with '1' after processing.
 	 */
 	public function set_action_menu_order() {
 		global $wpdb;
 
 		if ( current_user_can( 'wpcf7_edit_contact_form' ) && wpcf7_validate_nonce() ) {
-			parse_str( $_POST['data']['order'], $data );
+			if ( ! isset( $_POST['data']['order'] ) ) {
+				return false;
+			}
+
+			$order_data = wp_unslash( $_POST['data']['order'] );
+			parse_str( $order_data, $data );
 
 			if ( ! is_array( $data ) ) {
 				return false;
@@ -249,12 +278,17 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Render elements required by actions
+	 * Renders elements required by actions associated with a Contact Form 7 form.
 	 *
-	 * @param [array]  $properties - the properties array.
-	 * @param [object] $form - the form object.
+	 * This method processes all actions linked to a form and calls their render methods.
+	 * It handles two types of render callbacks:
+	 * - render_callback_once: Called only once per action
+	 * - render_callback: Called multiple times due to CF7's property handling
 	 *
-	 * @return array - $properties - the updated properties array.
+	 * @param array  $properties The CF7 form properties array.
+	 * @param object $form The Contact Form 7 form object.
+	 *
+	 * @return array Modified properties array with elements added by actions
 	 */
 	public function render_actions_elements( $properties, $form ) {
 
@@ -285,20 +319,27 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Delete an action
+	 * Delete a Redirection action post.
+	 *
+	 * Processes AJAX requests to delete action posts associated with Contact Form 7.
+	 * Validates user capabilities and nonce before proceeding with the deletion.
+	 *
+	 * @return void Sends a JSON response with deletion status and exits.
 	 */
 	public function delete_action_post() {
 		$response['status'] = 'failed';
 
 		if ( current_user_can( 'wpcf7_edit_contact_form' ) && wpcf7_validate_nonce() ) {
-			$data = isset( $_POST['data'] ) ? $_POST['data'] : '';
+			$data = isset( $_POST['data'] ) && is_array( $_POST['data'] ) ? $_POST['data'] : '';
 
-			if ( $data ) {
-				foreach ( $data as $post_to_delete ) {
-					if ( $post_to_delete ) {
-						wp_trash_post( $post_to_delete['post_id'] );
-						$response['status'] = 'deleted';
-					}
+			if ( empty( $data ) ) {
+				return;
+			}
+
+			foreach ( $data as $post_to_delete ) {
+				if ( $post_to_delete ) {
+					wp_trash_post( $post_to_delete['post_id'] );
+					$response['status'] = 'deleted';
 				}
 			}
 		}
@@ -307,7 +348,9 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Show notices on admin panel
+	 * Display admin notices stored in the session.
+	 *
+	 * @return void
 	 */
 	public function show_admin_notices() {
 		if ( ! isset( $_SESSION['wpcf7r_admin_notices'] ) ) {
@@ -317,8 +360,8 @@ class WPCF7r_Utils {
 		foreach ( $_SESSION['wpcf7r_admin_notices'] as $notice_type => $notice ) :
 			?>
 
-			<div class="notice notice-error is-dismissible <?php echo esc_attrr( $notice_type ); ?>">
-				<p><?php echo $notice; ?></p>
+			<div class="notice notice-error is-dismissible <?php echo esc_attr( $notice_type ); ?>">
+				<p><?php echo wp_kses_post( $notice ); ?></p>
 			</div>
 
 			<?php
@@ -326,9 +369,11 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Get all Contact Forms 7 forms
+	 * Get all Contact Form 7 forms IDs.
 	 *
-	 * @return array - $cf7_forms - the cf7 forms array.
+	 * Retrieves all contact forms from the database as post IDs.
+	 *
+	 * @return int[] An array of Contact Form 7 form post IDs.
 	 */
 	public static function get_all_cf7_forms() {
 		$args = array(
@@ -352,7 +397,7 @@ class WPCF7r_Utils {
 		$results['action_row'] = '';
 
 		if ( current_user_can( 'wpcf7_edit_contact_form' ) && wpcf7_validate_nonce() ) {
-			if ( isset( $_POST['data'] ) ) {
+			if ( isset( $_POST['data'] ) && is_array( $_POST['data'] ) ) {
 				$action_data = $_POST['data'];
 
 				$action_post_id = $action_data['post_id'];
@@ -415,25 +460,27 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Convert old plugin data to new structure
+	 * Convert old plugin data to new action structure
 	 *
-	 * @param  string - $cf7r_form - the form object.
-	 * @param  string - $required_conversion - the conversion type.
-	 * @param  int -    $post_id - the form id.
-	 * @param  int -    $rule_id - the rule id.
-	 * @return Actions
+	 * Transforms data from legacy plugins (CF7 Redirect or CF7 API) into the new action format.
+	 * This method handles the migration of settings from old plugin formats to the current action-based system.
 	 *
-	 * @version 1.2
+	 * @param string $required_conversion The type of conversion to perform ('migrate_from_cf7_redirect' or 'migrate_from_cf7_api').
+	 * @param int    $post_id            The form ID to associate the new actions with.
+	 * @param string $rule_name          The name of the rule to create.
+	 * @param string $rule_id            The rule ID to associate the actions with.
+	 * @return array An array of created action objects.
 	 */
-	private function convert_to_action( $cf7r_form, $required_conversion, $post_id, $rule_id ) {
+	private function convert_to_action( $required_conversion, $post_id, $rule_name, $rule_id ) {
 		$actions = array();
 
 		if ( 'migrate_from_cf7_redirect' === $required_conversion ) {
-			$old_api_action = $cf7r_form->get_cf7_redirection_settings();
+			$this->cf7r_form = get_cf7r_form( $post_id );
+			$old_api_action  = $this->cf7r_form->get_cf7_redirection_settings();
 
 			if ( $old_api_action ) {
 				// CREATE JAVSCRIPT ACTION.
-				if ( $old_api_action['fire_sctipt'] ) {
+				if ( isset( $old_api_action['fire_sctipt'] ) && $old_api_action['fire_sctipt'] ) {
 					$javscript_action = $this->create_action( $post_id, __( 'Migrated Javascript Action From Old Plugin', 'wpcf7-redirect' ), $rule_id, 'FireScript' );
 
 					$javscript_action->set( 'script', $old_api_action['fire_sctipt'] );
@@ -456,27 +503,42 @@ class WPCF7r_Utils {
 				$actions[] = $action;
 			}
 		} elseif ( 'migrate_from_cf7_api' === $required_conversion ) {
-			$old_api_action = $cf7r_form->get_cf7_api_settings();
+			$this->cf7r_form = get_cf7r_form( $post_id );
+			$old_api_action  = $this->cf7r_form->get_cf7_api_settings();
 
-			if ( $old_api_action ) {
-
+			if ( $old_api_action && isset( $old_api_action['_wpcf7_api_data'] ) ) {
 				$old_api__wpcf7_api_data = $old_api_action['_wpcf7_api_data'];
-				$old_tags_map            = $old_api_action['_wpcf7_api_data_map'];
+				$old_tags_map            = isset( $old_api_action['_wpcf7_api_data_map'] ) ? $old_api_action['_wpcf7_api_data_map'] : array();
+				$action_type             = 'api_url_request';
 
-				if ( 'params' === $old_api__wpcf7_api_data['input_type'] ) {
-					$action_type = 'api_url_request';
-				} elseif ( 'xml' === $old_api__wpcf7_api_data['input_type'] || 'json' === $old_api__wpcf7_api_data['input_type'] ) {
-					$action_type = 'api_json_xml_request';
+				if ( isset( $old_api__wpcf7_api_data['input_type'] ) ) {
+					if ( 'params' === $old_api__wpcf7_api_data['input_type'] ) {
+						$action_type = 'api_url_request';
+					} elseif ( 'xml' === $old_api__wpcf7_api_data['input_type'] || 'json' === $old_api__wpcf7_api_data['input_type'] ) {
+						$action_type = 'api_json_xml_request';
+					}
 				}
 
 				$action = $this->create_action( $post_id, __( 'Migrated Data from Old Plugin', 'wpcf7-redirect' ), $rule_id, $action_type );
 
 				if ( ! is_wp_error( $action ) ) {
-					$action->set( 'base_url', $old_api__wpcf7_api_data['base_url'] );
-					$action->set( 'input_type', strtolower( $old_api__wpcf7_api_data['method'] ) );
-					$action->set( 'record_type', strtolower( $old_api__wpcf7_api_data['input_type'] ) );
+					if ( isset( $old_api__wpcf7_api_data['base_url'] ) ) {
+						$action->set( 'base_url', $old_api__wpcf7_api_data['base_url'] );
+					}
+
+					if ( isset( $old_api__wpcf7_api_data['method'] ) ) {
+						$action->set( 'input_type', strtolower( $old_api__wpcf7_api_data['method'] ) );
+					}
+
+					if ( isset( $old_api__wpcf7_api_data['input_type'] ) ) {
+						$action->set( 'record_type', strtolower( $old_api__wpcf7_api_data['input_type'] ) );
+					}
+
 					$action->set( 'show_debug', '' );
-					$action->set( 'action_status', $old_api__wpcf7_api_data['send_to_api'] );
+
+					if ( isset( $old_api__wpcf7_api_data['send_to_api'] ) ) {
+						$action->set( 'action_status', $old_api__wpcf7_api_data['send_to_api'] );
+					}
 
 					$tags_map = array();
 
@@ -503,13 +565,17 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Create new post that will hold the action
+	 * Create new post that will hold the action.
 	 *
-	 * @param  int -    $post_id - the form id.
-	 * @param  string - $rule_name - the rule name.
-	 * @param  int -    $rule_id - the rule id.
-	 * @param string - $action_type - the action type.
-	 * @return Actions
+	 * Creates a new action post of type 'wpcf7r_action' with the given parameters.
+	 * The action is associated with a specific form, rule, and action type.
+	 *
+	 * @param int    $post_id     The form ID to associate the action with.
+	 * @param string $rule_name   The name of the rule, which will be used as the post title.
+	 * @param int    $rule_id     The ID of the rule to associate the action with.
+	 * @param string $action_type The type of action to create.
+	 *
+	 * @return WPCF7R_Action The created action object.
 	 */
 	public function create_action( $post_id, $rule_name, $rule_id, $action_type ) {
 		$new_action_post = array(
@@ -531,7 +597,11 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Get instance
+	 * Get singleton instance of the class.
+	 *
+	 * Ensures only one instance of the class is loaded or can be loaded.
+	 *
+	 * @return WPCF7R_Utils An instance of this class.
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -541,24 +611,30 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Get the plugin settings link
+	 * Get the plugin settings page URL.
+	 *
+	 * @return string The complete admin URL to the plugin settings page.
 	 */
 	public static function get_plugin_settings_page_url() {
 		return get_admin_url( null, 'options-general.php?page=wpc7_redirect' );
 	}
 
 	/**
-	 * Get the activation id
+	 * Retrieve the activation ID for the plugin.
+	 *
+	 * @return string|false The activation ID or false if not set.
 	 */
 	public static function get_activation_id() {
 		return get_option( 'wpcf7r_activation_id' );
 	}
 
 	/**
-	 * Get a link to the admin settings panel
+	 * Generate an HTML link to the plugin settings page.
+	 *
+	 * @return string HTML anchor tag linking to the settings page.
 	 */
 	public static function get_settings_link() {
-		return '<a href="' . self::get_plugin_settings_page_url() . '">' . __( 'Settings', 'wpcf7-redirect' ) . '</a>';
+		return '<a href="' . esc_url_raw( self::get_plugin_settings_page_url() ) . '">' . __( 'Settings', 'wpcf7-redirect' ) . '</a>';
 	}
 
 	/**
@@ -567,7 +643,7 @@ class WPCF7r_Utils {
 	 * @return void
 	 */
 	public function close_banner() {
-		if ( current_user_can( 'administrator' ) && wpcf7_validate_nonce() ) {
+		if ( current_user_can( 'manage_options' ) && wpcf7_validate_nonce() ) {
 			$this->update_option( 'last_banner_displayed', $this->banner_version );
 		}
 	}
@@ -575,9 +651,8 @@ class WPCF7r_Utils {
 	/**
 	 * Get specific option by key
 	 *
-	 * @param [string] $key - option key.
-	 *
-	 * @return [string] - option value.
+	 * @param string $key The option key to retrieve.
+	 * @return string The option value.
 	 */
 	public function get_option( $key ) {
 		$options = $this->get_wpcf7_options();
@@ -586,10 +661,10 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Update specific option
+	 * Update specific option.
 	 *
-	 * @param $key
-	 * @param [string] $value - posted value.
+	 * @param string $key   The option key to update.
+	 * @param string $value The value to be stored.
 	 */
 	public function update_option( $key, $value ) {
 		$options = $this->get_wpcf7_options();
@@ -600,7 +675,11 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Get the plugin options
+	 * Get the plugin options from the WordPress database.
+	 *
+	 * Retrieves the Redirection for Contact Form 7 plugin settings stored in the WordPress options table.
+	 *
+	 * @return array|false The plugin options array, or false if the option does not exist.
 	 */
 	public function get_wpcf7_options() {
 		return get_option( 'wpcf_redirect_options' );
@@ -609,17 +688,18 @@ class WPCF7r_Utils {
 	/**
 	 * Save the plugin options
 	 *
-	 * @param $options
+	 * @param array $options Array of plugin options to save.
 	 */
 	public function save_wpcf7_options( $options ) {
 		update_option( 'wpcf_redirect_options', $options );
 	}
 
 	/**
-	 * Get a list of avaiable text functions and callbacks
+	 * Get a list of available text functions and callbacks.
 	 *
-	 * @param string $func
-	 * @param string $field_type
+	 * @param string $func       Function name to retrieve specific callback.
+	 * @param string $field_type The type of field to get functions for.
+	 * @return array|callable    Returns array of functions or specific callback if func parameter is provided.
 	 */
 	public static function get_available_text_functions( $func = '', $field_type = '' ) {
 		$functions = array(
@@ -649,63 +729,70 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * [func_utf8_encode description]
+	 * Encodes string to UTF-8.
 	 *
-	 * @param [string] $value - posted value.
+	 * @param string $value The value to UTF-8 encode.
+	 * @return string The UTF-8 encoded string.
 	 */
 	public static function func_utf8_encode( $value ) {
 		return apply_filters( 'func_utf8_encode', utf8_encode( $value ), $value );
 	}
 
 	/**
-	 * [func_base64_encode description]
+	 * Encodes data with MIME base64.
 	 *
-	 * @param [string] $value - posted value.
+	 * @param string $value The value to encode.
+	 * @return string The base64 encoded string.
 	 */
 	public static function func_base64_encode( $value ) {
 		return apply_filters( 'func_base64_encode', base64_encode( $value ), $value );
 	}
 
 	/**
-	 * [func_base64_encode description]
+	 * URL-encodes a string.
 	 *
-	 * @param [string] $value - posted value.
+	 * @param string $value The string to be URL-encoded.
+	 * @return string The URL-encoded string.
 	 */
 	public static function func_urlencode( $value ) {
 		return apply_filters( 'func_urlencode', urlencode( $value ), $value );
 	}
 
 	/**
-	 * Esc html callback
+	 * Escapes HTML special characters.
 	 *
-	 * @param [string] $value - posted value.
+	 * @param string $value The text to be escaped.
+	 * @return string The escaped HTML text.
 	 */
 	public static function func_esc_html( $value ) {
 		return apply_filters( 'func_esc_html', esc_html( $value ), $value );
 	}
 
 	/**
-	 * Esc Attr callback
+	 * Escapes HTML attributes.
 	 *
-	 * @param [string] $value - posted value.
+	 * @param string $value The text to be escaped.
+	 * @return string The escaped attribute text.
 	 */
-	public function func_esc_attr( $value ) {
+	public static function func_esc_attr( $value ) {
 		return apply_filters( 'func_esc_attr', esc_attr( $value ), $value );
 	}
 
 	/**
-	 * Return the file path
+	 * Return the file path.
 	 *
-	 * @return [string] - file path.
+	 * @param string $value File value to process.
+	 * @return string File path.
 	 */
 	public static function func_file_path( $value ) {
 		return apply_filters( 'func_file_path', $value );
 	}
 
 	/**
-	 * Return base64 encoded file
+	 * Return base64 encoded file.
 	 *
-	 * @return [string] - base_64 file.
+	 * @param string $value File path to encode.
+	 * @return string Base64 encoded file contents.
 	 */
 	public static function func_base64_file( $value ) {
 		$file = file_get_contents( $value );
@@ -716,18 +803,20 @@ class WPCF7r_Utils {
 	/**
 	 * Json Encode callback
 	 *
-	 * @param [string] $value - posted value.
+	 * @param string|array|object $value Value to be JSON encoded.
+	 * @return string JSON encoded string.
 	 */
 	public static function func_json_encode( $value ) {
 		return apply_filters( 'func_json_encode', wp_json_encode( $value ), $value );
 	}
+
 	/**
-	 * [func_base64_encode description]
+	 * Implodes array values with comma separator.
 	 *
-	 * @param [string] $value - posted value.
+	 * @param string|array $value Value to implode if it's an array.
+	 * @return string Imploded string or original value if not an array.
 	 */
 	public static function func_implode( $value ) {
-
 		if ( is_array( $value ) ) {
 			$value = apply_filters( 'func_implode', implode( ',', $value ), $value );
 		}
@@ -736,16 +825,24 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * md5 function
+	 * MD5 function.
 	 *
-	 * @param [string] $value - posted value.
+	 * @param string $value Posted value.
 	 */
 	public static function func_md5( $value ) {
 		return apply_filters( 'func_md5', md5( $value ), $value );
 	}
 
+	/**
+	 * Make an API test request.
+	 *
+	 * @return void
+	 */
 	public function make_api_test() {
 		if ( current_user_can( 'wpcf7_edit_contact_form' ) && wpcf7_validate_nonce() ) {
+			if ( ! isset( $_POST['data']['data'] ) ) {
+				return;
+			}
 			parse_str( $_POST['data']['data'], $data );
 
 			if ( ! is_array( $data ) ) {
@@ -764,12 +861,12 @@ class WPCF7r_Utils {
 				$posted_action = reset( $data['wpcf7-redirect']['actions'] );
 				$posted_action = $posted_action['test_values'];
 				$_POST         = $posted_action;
-				// this will create a fake form submission
+				// this will create a fake form submission.
 				$this->cf7r_form = get_cf7r_form( $cf7_id );
 				$this->cf7r_form->enable_action( $action_id );
 
 				$cf7_form   = $this->cf7r_form->get_cf7_form_instance();
-				$submission = WPCF7_Submission::get_instance( $cf7_form );
+				$submission = WPCF7_Submission::get_instance( $cf7_form ); // Note: it auto-triggers the process.
 
 				if ( $submission->get_status() === 'validation_failed' ) {
 					$invalid_fields             = $submission->get_invalid_fields();
@@ -785,10 +882,12 @@ class WPCF7r_Utils {
 		}
 	}
 	/**
-	 * Store the results from the API
+	 * Store the results from the API.
 	 *
-	 * @param  $result
-	 * @param  $record
+	 * @param mixed $result API result data.
+	 * @param mixed $record API record data.
+	 * @param array $args   Request arguments.
+	 * @return mixed The API result.
 	 */
 	public function after_fake_submission( $result, $record, $args ) {
 		$this->results = $result;
@@ -799,7 +898,7 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Show A preview for the action
+	 * Show A preview for the action.
 	 */
 	public function show_action_preview() {
 		if ( isset( $_GET['wpcf7r-preview'] ) ) {
@@ -814,7 +913,7 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Get action template in case field are dynamicaly changed
+	 * Get action template in case field are dynamical changed.
 	 */
 	public function get_action_template() {
 		$response = array();
@@ -843,7 +942,7 @@ class WPCF7r_Utils {
 	}
 
 	/**
-	 * Get the popup html
+	 * Get the popup html.
 	 */
 	public function get_test_api_results_html() {
 		ob_start();

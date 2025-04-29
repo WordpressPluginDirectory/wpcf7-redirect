@@ -52,7 +52,6 @@ class WPCF7R_User {
 				foreach ( $actions as $action ) {
 					$action_type = $action->get( 'action_type' );
 					if ( 'register' === $action_type ) {
-
 						$fields_mapping = maybe_unserialize( $action->get( 'user_fields' ) );
 
 						if ( $fields_mapping ) {
@@ -132,7 +131,7 @@ class WPCF7R_User {
 
 		?>
 
-		<h3><?php _e( 'Extra profile information', 'wpcf7-redirect' ); ?></h3>
+		<h3><?php esc_html_e( 'Extra profile information', 'wpcf7-redirect' ); ?></h3>
 
 		<table class="form-table">
 			<?php foreach ( $fields as $field ) : ?>
@@ -144,10 +143,10 @@ class WPCF7R_User {
 				<?php $value = get_user_meta( $user->ID, $field['user_field_key'], true ); ?>
 				<tr>
 					<th>
-						<label for="<?php echo $field['user_field_key']; ?>"><?php echo $field['user_field_key']; ?></label>
+						<label for="<?php echo esc_attr( $field['user_field_key'] ); ?>"><?php echo esc_html( $field['user_field_key'] ); ?></label>
 					</th>
 					<td>
-						<input type="text" name="<?php echo $field['user_field_key']; ?>" value="<?php echo $value; ?>">
+						<input type="text" name="<?php echo esc_attr( $field['user_field_key'] ); ?>" value="<?php echo esc_attr( $value ); ?>">
 					</td>
 				</tr>
 			<?php endforeach; ?>

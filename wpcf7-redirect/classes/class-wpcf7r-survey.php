@@ -13,6 +13,13 @@ defined( 'ABSPATH' ) || exit;
 class WPCF7r_Survey {
 
 	/**
+	 * Cache key for saving the number of created actions post type.
+	 *
+	 * @var string
+	 */
+	const ACTIONS_COUNT_CACHE_KEY = 'wpcf7-actions-count';
+
+	/**
 	 * Reference to singleton insance.
 	 *
 	 * @var [WPCF7r_Survey]
@@ -23,7 +30,24 @@ class WPCF7r_Survey {
 	 * Init hooks.
 	 */
 	public function init() {
-		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+		if ( defined( 'E2E_TESTING' ) ) {
+			return;
+		}
+
+		add_filter( 'themeisle-sdk/survey/' . WPCF7_BASENAME, array( $this, 'get_survey_metadata' ), 10, 2 );
+
+		add_action(
+			'themeisle_internal_page',
+			function ( $product_slug, $page_slug ) {
+				if ( WPCF7_BASENAME !== $product_slug || 'wpcf7-contact-form-edit' !== $page_slug ) {
+					return;
+				}
+
+				$this->enqueue_scripts();
+			},
+			10,
+			2
+		);
 	}
 
 	/**
@@ -39,34 +63,25 @@ class WPCF7r_Survey {
 	/**
 	 * Get the data used for the survey.
 	 *
+	 * @param array  $data The data for survey in Formbricks format.
+	 * @param string $page_slug The slug of the page.
+	 *
 	 * @return array
-	 * @see survey.js
 	 */
-	public function get_survey_metadata() {
+	public function get_survey_metadata( $data, $page_slug ) {
 
-		$days_since_install = round( ( time() - get_option( 'redirection_for_contact_form_7_install', 0 ) ) / DAY_IN_SECONDS );
-		$install_category   = 0;
-		if ( 0 === $days_since_install || 1 === $days_since_install ) {
-			$install_category = 0;
-		} elseif ( 1 < $days_since_install && 8 > $days_since_install ) {
-			$install_category = 7;
-		} elseif ( 8 <= $days_since_install && 31 > $days_since_install ) {
-			$install_category = 30;
-		} elseif ( 30 < $days_since_install && 90 > $days_since_install ) {
-			$install_category = 90;
-		} elseif ( 90 <= $days_since_install ) {
-			$install_category = 91;
+		if ( empty( $page_slug ) ) {
+			return;
 		}
 
 		$attributes = array(
-			'free_version'       => WPCF7_PRO_REDIRECT_PLUGIN_VERSION,
-			'days_since_install' => $install_category,
-			'pro_version'        => WPCF7_PRO_REDIRECT_PLUGIN_VERSION,
-			'plan'               => 0,
-			'license_status'     => 'invalid',
+			'free_version'        => WPCF7_PRO_REDIRECT_PLUGIN_VERSION,
+			'install_days_number' => $this->get_install_time(),
+			'pro_version'         => WPCF7_PRO_REDIRECT_PLUGIN_VERSION,
+			'plan'                => 0,
+			'license_status'      => 'invalid',
+			'actions_number'      => self::count_actions_post_type( 100 ),
 		);
-
-		$user_id = 'wpcf7r_' . preg_replace( '/[^\w\d]*/', '', get_site_url() ); // Use a normalized version of the site URL as a user ID for free users.
 
 		$available_addons = array(
 			'wpcf7r-api',
@@ -101,44 +116,50 @@ class WPCF7r_Survey {
 			$prefix_name  = str_replace( '-', '_', $addon );
 			$license_data = get_option( $prefix_name . '_license_data', array() );
 
-			if ( ! empty( $license_data->key ) ) {
-				$user_id = 'wpcf7r_' . $license_data->key;
-			}
-
 			$attributes['pro_version']    = $this->get_plugin_version( WP_PLUGIN_DIR . '/' . $addon . '/init.php' );
 			$attributes['plan']           = $this->plan_category( $license_data );
 			$attributes['license_status'] = ! empty( $license_data->license ) ? $license_data->license : 'invalid';
+
+			if ( isset( $license_data->key ) ) {
+				$attributes['license_key'] = apply_filters( 'themeisle_sdk_secret_masking', $license_data->key );
+			}
 		}
 
-		return array(
-			'userId'     => $user_id,
-			'attributes' => $attributes,
+		if ( 0 === $attributes['plan'] ) {
+			do_action( 'themeisle_sdk_load_banner', 'rfc7r' );
+		}
+
+		$data = array(
+			'environmentId' => 'clza2w309000x2hkas1nydy4s',
+			'attributes'    => $attributes,
 		);
+
+		return $data;
 	}
 
 	/**
 	 * Enqueue scripts.
 	 */
 	public function enqueue_scripts() {
-
-		if ( defined( 'CYPRESS_TESTING' ) ) {
-			return;
-		}
-
 		$survey_handler = apply_filters( 'themeisle_sdk_dependency_script_handler', 'survey' );
 		if ( empty( $survey_handler ) ) {
 			return;
 		}
 
-		$survey_metadata = $this->get_survey_metadata();
-
 		do_action( 'themeisle_sdk_dependency_enqueue_script', 'survey' );
 		wp_enqueue_script( 'wpcf7r_survey', WPCF7_PRO_REDIRECT_ASSETS_PATH . 'js/survey.js', array( $survey_handler ), WPCF7_PRO_REDIRECT_PLUGIN_VERSION, true );
-		wp_localize_script( 'wpcf7r_survey', 'wpcf7rSurveyData', $survey_metadata );
+	}
 
-		if ( 0 === $survey_metadata['attributes']['plan'] ) {
-			do_action( 'themeisle_sdk_load_banner', 'rfc7r' );
-		}
+
+	/**
+	 * Get the number of days since the plugin was installed.
+	 *
+	 * @access public
+	 *
+	 * @return int Number of days since installation.
+	 */
+	public function get_install_time() {
+		return intval( ( time() - get_option( 'redirection_for_contact_form_7_install', time() ) ) / DAY_IN_SECONDS );
 	}
 
 	/**
@@ -182,5 +203,28 @@ class WPCF7r_Survey {
 		}
 
 		return $current_category;
+	}
+
+	/**
+	 * Count the actions post type. Cache the response.
+	 *
+	 * @param int $limit The limit. The cache duration is increased when limit is reached.
+	 *
+	 * @return int - The number of created actions post type.
+	 */
+	private static function count_actions_post_type( $limit ) {
+		$count = get_transient( self::ACTIONS_COUNT_CACHE_KEY );
+		if ( false === $count ) {
+			$args  = array(
+				'post_type'      => 'wpcf7r_action',
+				'post_status'    => 'publish',
+				'posts_per_page' => $limit,
+				'fields'         => 'ids',
+			);
+			$query = new WP_Query( $args );
+			$count = $query->post_count;
+			set_transient( self::ACTIONS_COUNT_CACHE_KEY, $count, $count === $limit ? WEEK_IN_SECONDS : 6 * HOUR_IN_SECONDS );
+		}
+		return intval( $count );
 	}
 }

@@ -1,6 +1,8 @@
 <?php
 /**
  * Class WPCF7R_Action_Save_Lead file - handles send send to api process
+ *
+ * @package Redirection for Contact Form 7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -8,14 +10,28 @@ defined( 'ABSPATH' ) || exit;
 add_action(
 	'init',
 	function () {
-		register_wpcf7r_actions( 'save_lead', __( 'Save Lead', 'wpcf7-redirect' ), 'WPCF7R_Action_Save_Lead', 3 );
+		register_wpcf7r_actions( 'save_lead', __( 'Save Entry', 'wpcf7-redirect' ), 'WPCF7R_Action_Save_Lead', 3 );
 	}
 );
 
+/**
+ * Class WPCF7R_Action_Save_Lead
+ *
+ * @package Redirection for Contact Form 7
+ */
 class WPCF7R_Action_Save_Lead extends WPCF7R_Action {
 
 	/**
-	 * Init the parent action class
+	 * A constant defining the action slug for the save lead action.
+	 *
+	 * @var string
+	 */
+	const ACTION_SLUG = 'save_lead';
+
+	/**
+	 * Init the parent action class.
+	 *
+	 * @param mixed $post Post data.
 	 */
 	public function __construct( $post ) {
 		parent::__construct( $post );
@@ -23,7 +39,7 @@ class WPCF7R_Action_Save_Lead extends WPCF7R_Action {
 	}
 
 	/**
-	 * Get the action admin fields
+	 * Get the action admin fields.
 	 */
 	public function get_action_fields() {
 
@@ -57,7 +73,8 @@ class WPCF7R_Action_Save_Lead extends WPCF7R_Action {
 					'sub_title'     => __( 'if this is off the rule will not be applied', 'wpcf7-redirect' ),
 					'placeholder'   => '',
 					'show_selector' => '',
-					'toggle-label'  => json_encode(
+					// Changed json_encode to wp_json_encode.
+					'toggle-label'  => wp_json_encode(
 						array(
 							'.field-wrap-action_status .checkbox-label,.column-status a' => array(
 								__( 'Enabled', 'wpcf7-redirect' ),
@@ -73,27 +90,28 @@ class WPCF7R_Action_Save_Lead extends WPCF7R_Action {
 	}
 
 	/**
-	 * Get an HTML of the
+	 * Get an HTML of the action settings.
 	 */
 	public function get_action_settings() {
 
 		$this->get_settings_template( 'html-action-redirect.php' );
-
 	}
 
 	/**
 	 * Connected to manage_columns hooks.
 	 *
-	 * @param [string] $column - key of the column.
-	 * @param [int]    $lead_id - the id of the relevant post.
+	 * @param string $column Key of the column.
+	 * @param int    $lead_id The id of the relevant post.
 	 * @return void
 	 */
 	public function display_action_column_content( $column, $lead_id ) {
 		switch ( $column ) {
 			case 'form':
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				echo $this->get_cf7_link_html();
 				break;
 			case 'data_preview':
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				echo $this->display_columns_values( $lead_id );
 				break;
 		}
@@ -102,6 +120,7 @@ class WPCF7R_Action_Save_Lead extends WPCF7R_Action {
 	/**
 	 * Display the values that were selected on the action.
 	 *
+	 * @param int $lead_id Lead post id.
 	 * @return void
 	 */
 	private function display_columns_values( $lead_id ) {
@@ -114,13 +133,22 @@ class WPCF7R_Action_Save_Lead extends WPCF7R_Action {
 
 					$value = get_post_meta( $lead_id, $field_key, true );
 
+					if ( empty( $value ) ) {
+						continue;
+					}
+
 					if ( is_array( $value ) ) {
 						$value = implode( ',', $value );
 					}
 
-					$string = $label . ': ' . $value;
-
-					echo sprintf( "<div class='preview-data'>%s</div>", $string );
+					printf(
+						"<div class='cf7r-preview-data'>
+						<span>%s</span>
+						<span>%s</span>
+					</div>",
+						esc_html( $label ),
+						esc_html( $value )
+					);
 
 					$none_selected = false;
 				}
@@ -128,39 +156,42 @@ class WPCF7R_Action_Save_Lead extends WPCF7R_Action {
 		}
 
 		if ( $none_selected ) {
-			echo __( 'No preview defined', 'wpcf7-redirect' );
+			esc_html_e( 'No preview defined', 'wpcf7-redirect' );
 		}
 	}
 
 	/**
-	 * Handle a simple redirect rule
+	 * Handle a simple redirect rule.
 	 *
-	 * @param $submission
+	 * @param WPCF7_Submission $submission The submission object.
+	 * @return array Response array.
 	 */
 	public function process( $submission ) {
 		$contact_form = $submission->get_contact_form();
 
-		// insert the lead to the DB
+		// insert the lead to the DB.
 		$files = $submission->uploaded_files();
-		
+
 		$submitted_files = array();
 
-		$posted_values = $submission->get_posted_data();
+		$posted_values    = $submission->get_posted_data();
+		$save_file_helper = new WPCF7R_Save_File();
+		$save_file_helper->init_uploads_dir();
 
 		if ( $files ) {
 			foreach ( $files as $file_key => $file_path ) {
-
-				if (is_array($file_path)) {
-					$file_path = reset($file_path);
+				if ( is_array( $file_path ) ) {
+					$file_path = reset( $file_path );
 				}
 
-				$type = pathinfo( $file_path, PATHINFO_EXTENSION );
+				$type          = pathinfo( $file_path, PATHINFO_EXTENSION );
+				$uploaded_path = $save_file_helper->move_file_to_upload( $file_path );
 
 				$submitted_files[ $file_key ] = array(
 					'type'        => $type,
 					'name'        => basename( $file_path ),
-					'base64_file' => wpcf7r_base_64_file( $file_path ),
-					'path'        => $file_path,
+					'path'        => $uploaded_path ? $uploaded_path : $file_path,
+					'base64_file' => '', // Kept for backward compatibility.
 				);
 				unset( $posted_values[ $file_key ] );
 			}
@@ -171,7 +202,7 @@ class WPCF7R_Action_Save_Lead extends WPCF7R_Action {
 		self::set_lead_id( $lead->post_id );
 
 		$response = array(
-			'type' => 'save_lead',
+			'type' => self::ACTION_SLUG,
 			'data' => array(
 				'lead_id' => $lead->post_id,
 			),
@@ -180,4 +211,3 @@ class WPCF7R_Action_Save_Lead extends WPCF7R_Action {
 		return $response;
 	}
 }
-

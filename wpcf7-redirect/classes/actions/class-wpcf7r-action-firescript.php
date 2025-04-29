@@ -1,6 +1,8 @@
 <?php
 /**
  * Class WPCF7R_Action_FireScript file - handles JavaScript actions
+ *
+ * @package Redirection_For_Contact_Form_7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -8,6 +10,12 @@ defined( 'ABSPATH' ) || exit;
 add_action(
 	'init',
 	function () {
+		$is_legacy_user = get_option( \Wpcf7_Redirect::LEGACY_FIRE_SCRIPT_OPTION_FLAG, false );
+
+		if ( 'yes' !== $is_legacy_user ) {
+			return;
+		}
+
 		register_wpcf7r_actions(
 			'FireScript',
 			__( 'Fire JavaScript', 'wpcf7-redirect' ),
@@ -17,14 +25,33 @@ add_action(
 	}
 );
 
+/**
+ * Class to handle JavaScript execution actions for Contact Form 7
+ *
+ * This class allows executing custom JavaScript code after form submission.
+ */
 class WPCF7R_Action_FireScript extends WPCF7R_Action {
 
+	/**
+	 * A constant defining the action slug.
+	 *
+	 * @var string
+	 */
+	const ACTION_SLUG = 'FireScript';
+
+	/**
+	 * Constructor for the fire script action
+	 *
+	 * @param object $post Post object representing the action settings.
+	 */
 	public function __construct( $post ) {
 		parent::__construct( $post );
 	}
 
 	/**
 	 * Get the fields relevant for this action
+	 *
+	 * @return array Array of field definitions for the action settings form.
 	 */
 	public function get_action_fields() {
 		return array_merge(
@@ -38,13 +65,13 @@ class WPCF7R_Action_FireScript extends WPCF7R_Action {
 					'value'       => $this->get( 'script' ),
 				),
 				'short-tags-usage' => array(
-					'name'          => 'general-alert',
+					'name'          => 'short-tags-usage',
 					'type'          => 'notice',
 					'label'         => __( 'Notice!', 'wpcf7-redirect' ),
-					/* Translators: available mail tags */
-					'sub_title'     => sprintf( __( 'You can use the following tags.<div>%s</div>', 'wpcf7-redirect' ), $this->get_formatted_mail_tags() ),
+
+					'sub_title'     => __( 'You can use form tags to add data from the submission.', 'wpcf7-redirect' ) . '<div>' . $this->get_formatted_mail_tags() . '</div>',
 					'placeholder'   => '',
-					'class'         => 'field-notice-alert',
+					'class'         => 'field-notice-info',
 					'show_selector' => '',
 				),
 				'general-alert'    => array(
@@ -52,12 +79,11 @@ class WPCF7R_Action_FireScript extends WPCF7R_Action {
 					'type'          => 'notice',
 					'label'         => __( 'Warning!', 'wpcf7-redirect' ),
 					'sub_title'     => __(
-						'This option is for developers only - use with caution. If the plugin does not redirect after you have added scripts,
-                    it means you have a problem with your script. Either fix the script, or remove it.',
+						'This option is for developers only - use with caution. If the plugin does not redirect after you have added scripts, it means you have a problem with your script. Either fix the script, or remove it.',
 						'wpcf7-redirect'
 					),
 					'placeholder'   => '',
-					'class'         => 'field-warning-alert',
+					'class'         => 'field-notice-danger',
 					'show_selector' => '',
 				),
 			),
@@ -74,6 +100,9 @@ class WPCF7R_Action_FireScript extends WPCF7R_Action {
 
 	/**
 	 * Handle a simple redirect rule
+	 *
+	 * @param WPCF7_Submission $submission The form submission object.
+	 * @return string The processed JavaScript code.
 	 */
 	public function process( $submission ) {
 
@@ -83,5 +112,4 @@ class WPCF7R_Action_FireScript extends WPCF7R_Action {
 
 		return $script;
 	}
-
 }

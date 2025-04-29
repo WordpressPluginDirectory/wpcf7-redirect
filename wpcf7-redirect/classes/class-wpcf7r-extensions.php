@@ -1,8 +1,22 @@
 <?php
+/**
+ * Extension management class for Contact Form 7 Redirection plugin.
+ *
+ * @package Redirection_For_Contact_Form_7
+ */
+
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Class WPCF7R_Extensions
+ */
 class WPCF7R_Extensions {
 
+	/**
+	 * Constructor for the class.
+	 *
+	 * Initializes the available extensions and sets them up for display.
+	 */
 	public function __construct() {
 		$this->available_extensions = wpcf7_get_extensions();
 		$this->set_available_extensions();
@@ -23,9 +37,10 @@ class WPCF7R_Extensions {
 	public function init() {
 		$this->display();
 	}
-
 	/**
 	 * View available extensions
+	 *
+	 * @return array An array of extension objects.
 	 */
 	public function get_extensions() {
 		return $this->extensions;
@@ -37,6 +52,6 @@ class WPCF7R_Extensions {
 	 * @return void
 	 */
 	public function display() {
-		include WPCF7_PRO_REDIRECT_TEMPLATE_PATH . 'extensions.php' ;
+		include WPCF7_PRO_REDIRECT_TEMPLATE_PATH . 'extensions.php';
 	}
 }

@@ -12,6 +12,11 @@ defined( 'ABSPATH' ) || exit;
 /* form_tag handler */
 add_action( 'wpcf7_init', 'wpcf7_add_form_tag_password', 10, 0 );
 
+/**
+ * Adds the password form tag to CF7's form tag options.
+ *
+ * @return void
+ */
 function wpcf7_add_form_tag_password() {
 	if ( function_exists( 'wpcf7_add_form_tag' ) ) {
 		wpcf7_add_form_tag(
@@ -22,6 +27,12 @@ function wpcf7_add_form_tag_password() {
 	}
 }
 
+/**
+ * Handles the password form tag.
+ *
+ * @param object $tag The form tag instance.
+ * @return string HTML output for the password field.
+ */
 function wpcf7_password_form_tag_handler( $tag ) {
 	if ( empty( $tag->name ) ) {
 		return '';
@@ -49,7 +60,7 @@ function wpcf7_password_form_tag_handler( $tag ) {
 		$atts['pattern'] = ".{{$atts['minlength']},}";
 	}
 
-	if ( $atts['maxlength'] and $atts['minlength'] && $atts['maxlength'] < $atts['minlength'] ) {
+	if ( ( $atts['maxlength'] && $atts['minlength'] ) && ( $atts['maxlength'] < $atts['minlength'] ) ) {
 		unset( $atts['maxlength'], $atts['minlength'] );
 	}
 
@@ -104,13 +115,20 @@ function wpcf7_password_form_tag_handler( $tag ) {
 add_filter( 'wpcf7_validate_password', 'wpcf7_password_validation_filter', 10, 2 );
 add_filter( 'wpcf7_validate_password*', 'wpcf7_password_validation_filter', 10, 2 );
 
+/**
+ * Validates the password field input.
+ *
+ * @param object $result The validation result.
+ * @param object $tag The form tag instance.
+ * @return object Modified validation result.
+ */
 function wpcf7_password_validation_filter( $result, $tag ) {
 	$name  = $tag->name;
 	$value = isset( $_POST[ $name ] )
 		? trim( wp_unslash( strtr( (string) $_POST[ $name ], "\n", ' ' ) ) )
 		: '';
 	if ( 'password' === $tag->basetype ) {
-		if ( $tag->is_required() and '' === $value ) {
+		if ( $tag->is_required() && '' === $value ) {
 			$result->invalidate( $tag, wpcf7_get_message( 'invalid_required' ) );
 		}
 		$atts['maxlength'] = $tag->get_maxlength_option();
@@ -128,6 +146,12 @@ function wpcf7_password_validation_filter( $result, $tag ) {
 /* Messages */
 add_filter( 'wpcf7_messages', 'wpcf7_password_messages', 10, 1 );
 
+/**
+ * Adds password field related messages to the CF7 messages.
+ *
+ * @param array $messages Existing messages array.
+ * @return array Modified messages array.
+ */
 function wpcf7_password_messages( $messages ) {
 	$messages = array_merge(
 		$messages,
@@ -160,6 +184,11 @@ function wpcf7_password_messages( $messages ) {
  */
 add_action( 'wpcf7_admin_init', 'wpcf7_add_tag_generator_password', 15, 0 );
 
+/**
+ * Adds the password tag generator to the CF7 admin interface.
+ *
+ * @return void
+ */
 function wpcf7_add_tag_generator_password() {
 	$tag_generator = WPCF7_TagGenerator::get_instance();
 	// Use the new syntax for the tag generator.
@@ -182,6 +211,13 @@ function wpcf7_add_tag_generator_password() {
 	}
 }
 
+/**
+ * Generates the password form tag UI in the CF7 admin interface.
+ *
+ * @param object $contact_form Current contact form object.
+ * @param mixed  $args Tag generator arguments.
+ * @return void
+ */
 function wpcf7_tag_generator_password( $contact_form, $args = '' ) {
 	$args = wp_parse_args( $args, array() );
 	$type = $args['id'];
@@ -226,12 +262,12 @@ function wpcf7_tag_generator_password( $contact_form, $args = '' ) {
 		</fieldset>
 	</div>
 	<div class="insert-box">
-		<input type="text" name="<?php echo $type; ?>" class="tag code" readonly="readonly" onfocus="this.select()" />
+		<input type="text" name="<?php echo esc_attr( $type ); ?>" class="tag code" readonly="readonly" onfocus="this.select()" />
 		<div class="submitbox">
 			<input type="button" class="button button-primary insert-tag" value="<?php echo esc_attr( __( 'Insert Tag', 'wpcf7-redirect' ) ); ?>" />
 		</div>
 		<br class="clear" />
-		<p class="description mail-tag"><label for="<?php echo esc_attr( $args['content'] . '-mailtag' ); ?>"><?php echo sprintf( esc_html( __( 'To use the value input through this field in a mail field, you need to insert the corresponding mail-tag into the field on the Mail tab.', 'wpcf7-redirect' ) ), '<strong><span class="mail-tag"></span></strong>' ); ?><input type="text" class="mail-tag code hidden" readonly="readonly" id="<?php echo esc_attr( $args['content'] . '-mailtag' ); ?>" /></label></p>
+		<p class="description mail-tag"><label for="<?php echo esc_attr( $args['content'] . '-mailtag' ); ?>"><?php printf( esc_html( __( 'To use the value input through this field in a mail field, you need to insert the corresponding mail-tag into the field on the Mail tab.', 'wpcf7-redirect' ) ), '<strong><span class="mail-tag"></span></strong>' ); ?><input type="text" class="mail-tag code hidden" readonly="readonly" id="<?php echo esc_attr( $args['content'] . '-mailtag' ); ?>" /></label></p>
 	</div>
 	<?php
 }

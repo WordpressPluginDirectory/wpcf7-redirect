@@ -1,115 +1,123 @@
 <?php
 /**
  * Class WPCF7R_Form - Container class that wraps the CF7 form object and adds functionality
+ *
+ * @package Redirection for Contact Form 7
  */
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * WPCF7R_Form Class
+ *
+ * This class is a wrapper for the CF7 form object that adds redirection functionality
+ * and additional actions that can be performed after form submission.
+ */
 class WPCF7R_Form {
 	/**
-	 * Refrence to the mail tags.
+	 * Reference to the mail tags.
 	 *
-	 * @var [array]
+	 * @var array<mixed>|string
 	 */
 	public static $mail_tags;
 
 	/**
-	 * Refrence to the current contact form 7 form
+	 * Reference to the current contact form 7 form.
 	 *
-	 * @var [object]
+	 * @var \WPCF7_ContactForm|null
 	 */
 	public static $cf7_form;
 
 	/**
-	 * Save refrence to the current instance
+	 * Save reference to the current instance.
 	 *
-	 * @var [WPCF7R_Form]
+	 * @var self|null
 	 */
 	public static $instance;
 
 	/**
-	 * Refrence to the current contact form 7 form
+	 * Reference to the action to submit.
 	 *
-	 * @var [object]
+	 * @var int|null
 	 */
 	public static $action_to_submit;
 
 	/**
-	 * Holds an array of items remove from $_POST for security reasons
+	 * Holds an array of items removed from $_POST for security reasons.
 	 *
-	 * @var [array]
+	 * @var array<string, mixed>|null
 	 */
 	public static $removed_data;
 
 	/**
-	 * Save proceesed actions from validation stage
+	 * Save processed actions from validation stage.
 	 *
-	 * @var [array]
+	 * @var array<WPCF7R_Action>|null
 	 */
 	public static $processed_actions;
 
 	/**
-	 * Refrence to the current submitted torm validation obj
+	 * Reference to the current submitted form validation obj.
 	 *
-	 * @var [object]
+	 * @var object|null
 	 */
 	public static $wpcf_validation_obj;
 
 	/**
-	 * Reference to the current submitted form
+	 * Reference to the current submitted form.
 	 *
-	 * @var [object]
+	 * @var WPCF7_Submission|null
 	 */
 	public static $submission;
 
 	/**
-	 * Refrence to the current contact form 7 form
+	 * Reference to the current contact form 7 form ID.
 	 *
-	 * @var [int]
+	 * @var int
 	 */
 	public $post_id;
 
 	/**
 	 * Form defined actions.
 	 *
-	 * @var [array]
+	 * @var WPCF7R_Actions
 	 */
 	public $redirect_actions;
 
 	/**
-	 * Refrence to the current contact form 7 form
+	 * Reference to the current contact form 7 form.
 	 *
-	 * @var [object]
+	 * @var \WPCF7_ContactForm|null
 	 */
 	public $cf7_post;
 
 	/**
-	 * Refrence to the html helper class.
+	 * Reference to the html helper class.
 	 *
-	 * @var [WPCF7R_html]
+	 * @var WPCF7R_html|null
 	 */
 	public $html;
 
 	/**
 	 * Array of form actions.
 	 *
-	 * @var [array]
+	 * @var array<WPCF7R_Action>|null
 	 */
 	public $actions;
 
 	/**
 	 * Reference to the form tags.
 	 *
-	 * @var [array]
+	 * @var array<mixed>|null
 	 */
 	public static $tags;
 
 	/**
 	 * Main class Constructor
 	 *
-	 * @param [object] $cf7 - the contact form 7 object.
-	 * @param [object] $submission - the submission object.
-	 * @param [object] $validation_obj - the validation object.
+	 * @param int|\WPCF7_ContactForm $cf7 The contact form 7 object or ID.
+	 * @param WPCF7_Submission|null  $submission The submission object.
+	 * @param object|null            $validation_obj The validation object.
 	 */
 	public function __construct( $cf7, $submission = null, $validation_obj = null ) {
 		if ( is_int( $cf7 ) ) {
@@ -144,46 +152,55 @@ class WPCF7R_Form {
 	}
 
 	/**
-	 * Get submission refrerence.
+	 * Get submission reference.
 	 *
-	 * @return [object]
+	 * @return WPCF7_Submission|null
 	 */
 	public function get_submission() {
 		return self::$submission;
 	}
 
 	/**
-	 * Get the form submission status
+	 * Get the form submission status.
+	 *
+	 * @return string|null
 	 */
 	public function get_submission_status() {
 		return self::get_submission()->get_status();
 	}
 
 	/**
-	 * Disable all form actions except the requested one
+	 * Disable all form actions except the requested one.
 	 *
-	 * @param [int] - $action_id - the action id to enable.
+	 * @param int $action_id The action ID to enable.
+	 * @return void
 	 */
 	public function enable_action( $action_id ) {
 		self::$action_to_submit = $action_id;
 	}
 
 	/**
-	 * In case a specific action was required (used for testing)
+	 * In case a specific action was required (used for testing).
+	 *
+	 * @return int|null The ID of the action to submit.
 	 */
 	public function get_action_to_submit() {
 		return self::$action_to_submit;
 	}
 
 	/**
-	 * Get an instance of wpcf7 object
+	 * Get an instance of wpcf7 object.
+	 *
+	 * @return \WPCF7_ContactForm|null The CF7 form instance.
 	 */
 	public function get_cf7_form_instance() {
 		return $this->cf7_post;
 	}
 
 	/**
-	 * Get old redirection plugin rules
+	 * Get old redirection plugin rules.
+	 *
+	 * @return array<string, mixed> Array of old redirection settings.
 	 */
 	public function get_cf7_redirection_settings() {
 		$custom_data  = get_post_custom( $this->post_id );
@@ -224,9 +241,9 @@ class WPCF7R_Form {
 	}
 
 	/**
-	 * Set the form tags for validation
+	 * Set the form tags for validation.
 	 *
-	 * @param [array] $tags
+	 * @param array<mixed> $tags An array of form tags used for validation.
 	 * @return void
 	 */
 	public function set_tags( $tags ) {
@@ -234,16 +251,18 @@ class WPCF7R_Form {
 	}
 
 	/**
-	 * Get the form tags for validation
+	 * Get the form tags for validation.
 	 *
-	 * @return [array]
+	 * @return array<mixed>|null
 	 */
 	public static function get_tags() {
 		return self::$tags;
 	}
 
 	/**
-	 * Get the old contact form 7 to api settings
+	 * Get the old contact form 7 to api settings.
+	 *
+	 * @return array<string, mixed>
 	 */
 	public function get_cf7_api_settings() {
 		$custom_data  = get_post_custom( $this->post_id );
@@ -264,10 +283,10 @@ class WPCF7R_Form {
 	}
 
 	/**
-	 * Check if a form has a specific action type
+	 * Check if a form has a specific action type.
 	 *
-	 * @param [string] $type - the action type to check.
-	 * @return boolean
+	 * @param string $type The action type to check.
+	 * @return array<WPCF7R_Action>|false
 	 */
 	public function has_action( $type ) {
 		$args       = array();
@@ -287,27 +306,28 @@ class WPCF7R_Form {
 	/**
 	 * Update the plugin has migrated
 	 *
-	 * @param [string] $migration_type - the migration type to update.
+	 * @param string $migration_type The migration type to update.
+	 * @return void
 	 */
 	public function update_migration( $migration_type ) {
 		update_post_meta( $this->post_id, $migration_type, true );
 	}
 
 	/**
-	 * Check if a form was migrated from old version
+	 * Check if a form was migrated from old version.
 	 *
-	 * @param [string] - $migration_type - the migration type to check.
-	 * @return boolean
+	 * @param string $migration_type The migration type to check.
+	 * @return bool
 	 */
 	public function has_migrated( $migration_type ) {
-		return get_post_meta( $this->post_id, $migration_type, true );
+		return (bool) get_post_meta( $this->post_id, $migration_type, true );
 	}
 
 	/**
 	 * Check if there is old data on the DB
 	 *
-	 * @param [string] $type - the migration type to check.
-	 * @return boolean
+	 * @param string $type The migration type to check.
+	 * @return array<string, mixed>|false
 	 */
 	public function has_old_data( $type ) {
 		if ( 'migrate_from_cf7_api' === $type ) {
@@ -421,7 +441,7 @@ class WPCF7R_Form {
 		if ( ! isset( $_POST ) || empty( $_POST['wpcf7-redirect'] ) ) {
 			return;
 		} else {
-			if ( ! wp_verify_nonce( $_POST['wpcf7_redirect_page_metaboxes_nonce'], 'wpcf7_redirect_page_metaboxes' ) ) {
+			if ( ! isset( $_POST['wpcf7_redirect_page_metaboxes_nonce'] ) || ! wp_verify_nonce( $_POST['wpcf7_redirect_page_metaboxes_nonce'], 'wpcf7_redirect_page_metaboxes' ) ) {
 				return;
 			}
 			$form_id = $this->post_id;
@@ -537,6 +557,8 @@ class WPCF7R_Form {
 
 	/**
 	 * Create plugin fields
+	 *
+	 * @return array<int, array<string, string>>
 	 */
 	public function get_plugin_fields() {
 		$fields = array_merge(
@@ -553,6 +575,8 @@ class WPCF7R_Form {
 
 	/**
 	 * Get the contact form id
+	 *
+	 * @return int
 	 */
 	public function get_id() {
 		return $this->post_id;
@@ -560,6 +584,8 @@ class WPCF7R_Form {
 
 	/**
 	 * Get the form fields for usage on the selectors
+	 *
+	 * @return array<mixed>|null
 	 */
 	public function get_cf7_fields() {
 		$tags = self::get_mail_tags();
@@ -568,6 +594,8 @@ class WPCF7R_Form {
 
 	/**
 	 * Get special mail tags
+	 *
+	 * @return array<WPCF7_MailTag>
 	 */
 	public static function get_special_mail_tags() {
 		$mailtags          = array();
@@ -602,12 +630,14 @@ class WPCF7R_Form {
 
 	/**
 	 * Collect the mail tags from the form
+	 *
+	 * @return array<WPCF7_FormTag>|null
 	 */
 	public static function get_mail_tags() {
 		$mailtags = array();
 		// If this is a new form there are no tags yet.
 		if ( ! isset( self::$cf7_form ) || ! self::$cf7_form ) {
-			return;
+			return null;
 		}
 
 		$tags = apply_filters( 'wpcf7r_collect_mail_tags', self::$cf7_form->scan_form_tags() );
@@ -648,7 +678,6 @@ class WPCF7R_Form {
 				'content'    => '',
 			);
 			$mailtags[]  = new WPCF7_FormTag( $scanned_tag );
-			
 		}
 
 		return $mailtags;
@@ -656,6 +685,8 @@ class WPCF7R_Form {
 
 	/**
 	 * Process actions that are relevant for validation process
+	 *
+	 * @return array<string, array<mixed>>
 	 */
 	public function process_validation_actions() {
 		$actions = $this->get_active_actions();
@@ -674,6 +705,8 @@ class WPCF7R_Form {
 
 	/**
 	 * Get validation object
+	 *
+	 * @return object|null
 	 */
 	public static function get_validation_obj() {
 		return self::$wpcf_validation_obj;
@@ -681,6 +714,8 @@ class WPCF7R_Form {
 
 	/**
 	 * Get validation object $tags
+	 *
+	 * @return array<mixed>|string
 	 */
 	public static function get_validation_obj_tags() {
 		$tags = self::get_tags();
@@ -703,18 +738,22 @@ class WPCF7R_Form {
 	 */
 	public function process_actions() {
 		// Get all active actions.
-		$actions = $this->get_active_actions();
+		$actions            = $this->get_active_actions();
+		$available_handlers = wpcf7r_get_available_actions_handlers();
 
-		// Prepeare the results array.
 		$results = array();
 
 		if ( $actions ) {
-			// Loop through actions and process.
 			foreach ( $actions as $action ) {
-				// save the validation object in case this action manipulates validations
-				// do the action.
-				$action_result = $action->process_action( $this );
-				// add the action to the results array.
+
+				// Process registered actions only.
+				$action_class = get_class( $action );
+				if ( ! in_array( $action_class, $available_handlers ) ) {
+					continue;
+				}
+
+				// Save the validation object in case this action manipulates validations.
+				$action_result                    = $action->process_action( $this );
 				$results[ $action->get_type() ][] = $action_result;
 				self::$processed_actions[]        = $action;
 			}

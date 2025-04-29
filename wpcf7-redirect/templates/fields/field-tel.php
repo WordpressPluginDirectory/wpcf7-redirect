@@ -1,6 +1,8 @@
 <?php
 /**
  * Display text field
+ *
+ * @package Redirection_For_Contact_Form_7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -17,18 +19,18 @@ $placeholder = isset( $field['placeholder'] ) ? $field['placeholder'] : '';
 $value       = isset( $field['value'] ) ? $field['value'] : '';
 
 ?>
-<div class="field-wrap field-wrap-<?php echo esc_html( $name ); ?> <?php echo $class; ?>">
+<div class="field-wrap field-wrap-<?php echo esc_html( $name ); ?> <?php echo esc_attr( $class ); ?>">
 	<?php if ( $label ) : ?>
-		<label for="wpcf7-redirect-<?php echo $name; ?>">
+		<label for="wpcf7-redirect-<?php echo esc_attr( $name ); ?>">
 			<strong><?php echo esc_html( $label ); ?></strong>
-			<?php echo $tooltip;?>
+			<?php echo wp_kses_post( $tooltip ); ?>
 		</label>
 	<?php endif; ?>
 
 	<?php if ( $sub_title ) : ?>
 
 		<div class="wpcf7-subtitle">
-			<?php echo esc_html( $sub_title ); ?>
+			<?php echo wp_kses_post( $sub_title ); ?>
 		</div>
 
 	<?php endif; ?>
@@ -36,6 +38,9 @@ $value       = isset( $field['value'] ) ? $field['value'] : '';
 	<input type="tel" class="wpcf7-redirect-<?php echo esc_html( $name ); ?>-fields <?php echo esc_html( $input_class ); ?>" placeholder="<?php echo esc_html( $placeholder ); ?>" name="wpcf7-redirect<?php echo esc_html( $prefix ); ?>[<?php echo esc_html( $name ); ?>]" value="<?php echo esc_html( $value ); ?>" <?php echo esc_html( $input_attr ); ?>>
 
 	<div class="field-footer">
-		<?php echo  $footer; ?>
+		<?php
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $footer;
+		?>
 	</div>
 </div>

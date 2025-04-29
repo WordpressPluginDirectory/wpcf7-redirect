@@ -35,7 +35,6 @@ class WPCF7r_Settings {
 	public function __construct() {
 		$this->page_slug = 'wpc7_redirect';
 
-		add_action( 'admin_menu', array( $this, 'create_plugin_settings_page' ) );
 		add_action( 'admin_init', array( $this, 'wpcf7r_register_options' ) );
 		add_filter( 'plugin_row_meta', array( $this, 'register_plugin_links' ), 10, 2 );
 	}
@@ -96,11 +95,24 @@ class WPCF7r_Settings {
 		switch ( $arguments['type'] ) {
 			case 'text': // If it is a text field.
 			case 'password':
-				printf( '<input name="%1$s" id="%1$s" type="%2$s" placeholder="%3$s" value="%4$s" class="widefat" />', $arguments['uid'], $arguments['type'], $arguments['placeholder'], $value );
+				printf(
+					'<input name="%1$s" id="%1$s" type="%2$s" placeholder="%3$s" value="%4$s" class="widefat" />',
+					esc_attr( $arguments['uid'] ),
+					esc_attr( $arguments['type'] ),
+					esc_attr( $arguments['placeholder'] ),
+					esc_attr( $value )
+				);
 				break;
 			case 'checkbox': // If it is a text field.
 				$checked = checked( $value, '1', false );
-				printf( '<input name="%1$s" id="%1$s" type="%2$s" placeholder="%3$s" value="%4$s" class="widefat" %5$s/>', $arguments['uid'], $arguments['type'], $arguments['placeholder'], '1', $checked );
+				printf(
+					'<input name="%1$s" id="%1$s" type="%2$s" placeholder="%3$s" value="%4$s" class="widefat" %5$s/>',
+					esc_attr( $arguments['uid'] ),
+					esc_attr( $arguments['type'] ),
+					esc_attr( $arguments['placeholder'] ),
+					'1',
+					esc_attr( $checked )
+				);
 				break;
 		}
 
@@ -109,7 +121,7 @@ class WPCF7r_Settings {
 
 		// If there is help text.
 		if ( $helper ) {
-			printf( '<span class="helper"> %s</span>', $helper ); // Show it.
+			printf( '<span class="helper"> %s</span>', esc_html( $helper ) ); // Show it.
 		}
 
 		// If there is supplemental text.
@@ -123,7 +135,7 @@ class WPCF7r_Settings {
 	 */
 	public function create_plugin_settings_page() {
 		// Add the menu item and page.
-		$page_title = 'Redirection settings';
+		$page_title = __( 'Redirection settings', 'wpcf7-redirect' );
 		$capability = 'manage_options';
 		$callback   = array( $this, 'plugin_settings_page_content' );
 
@@ -135,18 +147,25 @@ class WPCF7r_Settings {
 			$this->page_slug,
 			$callback
 		);
-		add_action( "load-$hook", array( WPCF7r_Survey::get_instance(), 'init' ) );
+
+		add_action(
+			"load-$hook",
+			function () {
+				do_action( 'themeisle_internal_page', WPCF7_BASENAME, 'settings' );
+			}
+		);
 	}
 
 	/**
 	 * The setting page template HTML
 	 */
-	public function plugin_settings_page_content() {        ?>
+	public function plugin_settings_page_content() {
+		?>
 		<section class="padbox">
 			<div class="wrap wrap-wpcf7redirect">
 				<h2>
 					<span>
-						<?php _e( 'Redirection For Contact Form 7', 'wpcf7-redirect' ); ?>
+						<?php esc_html_e( 'Redirection For Contact Form 7', 'wpcf7-redirect' ); ?>
 					</span>
 				</h2>
 				<div class="postbox">
@@ -160,8 +179,7 @@ class WPCF7r_Settings {
 							?>
 						</form>
 						<?php if ( is_wpcf7r_debug() ) : ?>
-							<input type="button" name="reset_all" value="<?php _e( 'Reset all Settings - BE CAREFUL! this will delete all Redirection for Contact Form 7 data.', 'wpcf7-redirect' ); ?>" class="cf7-redirect-reset button button-secondary" />
-
+							<input type="button" name="reset_all" value="<?php esc_html_e( 'Reset all Settings - BE CAREFUL! this will delete all Redirection for Contact Form 7 data.', 'wpcf7-redirect' ); ?>" class="cf7-redirect-reset button button-secondary" />
 						<?php endif; ?>
 					</div>
 				</div>

@@ -22,4 +22,4 @@ foreach ( $authors as $author ) {
 }
 
 
-include $template;
+require $template;

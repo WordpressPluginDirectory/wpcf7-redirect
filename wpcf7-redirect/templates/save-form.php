@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 			<div class="wpcf7r-tab-wrap-inner">
 				<div data-tab-inner>
 					<h3>
-						<?php _e( 'Please save your form', 'wpcf7-redirect' ); ?>
+						<?php esc_html_e( 'Please save your form', 'wpcf7-redirect' ); ?>
 					</h3>
 				</div>
 			</div>

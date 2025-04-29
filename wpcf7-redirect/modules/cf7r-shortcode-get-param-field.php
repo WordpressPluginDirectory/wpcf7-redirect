@@ -10,19 +10,22 @@ add_shortcode( 'wpcf7r_posted_param', 'wpcf7r_get_param' );
 
 /**
  * Collect the data from the query string by parameter
+ *
+ * @param array $attrs The attributes.
+ * @return string - The param.
  */
-function wpcf7r_get_param( $atts ) {
-	$atts  = shortcode_atts(
+function wpcf7r_get_param( $attrs ) {
+	$attrs = shortcode_atts(
 		array(
 			'param' => '',
 		),
-		$atts,
+		$attrs,
 		'wpcf7-redirect'
 	);
 	$param = '';
 
-	if ( isset( $_GET[ $atts['param'] ] ) && $_GET[ $atts['param'] ] ) {
-		$param = esc_attr( wp_kses( $_GET[ $atts['param'] ], array( '' ) ) );
+	if ( isset( $_GET[ $attrs['param'] ] ) && $_GET[ $attrs['param'] ] ) {
+		$param = esc_attr( wp_kses( $_GET[ $attrs['param'] ], array( '' ) ) );
 	}
 
 	return $param;
