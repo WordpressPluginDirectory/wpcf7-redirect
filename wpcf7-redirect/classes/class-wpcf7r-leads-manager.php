@@ -102,6 +102,8 @@ class WPCF7R_Leads_Manager {
 				),
 			),
 		);
+
+		do_action( 'themeisle_internal_page', WPCF7_BASENAME, 'form-entries' );
 	}
 
 	/**

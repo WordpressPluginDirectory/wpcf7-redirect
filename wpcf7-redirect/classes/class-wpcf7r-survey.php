@@ -39,7 +39,7 @@ class WPCF7r_Survey {
 		add_action(
 			'themeisle_internal_page',
 			function ( $product_slug, $page_slug ) {
-				if ( WPCF7_BASENAME !== $product_slug || 'wpcf7-contact-form-edit' !== $page_slug ) {
+				if ( WPCF7_BASENAME !== $product_slug ) {
 					return;
 				}
 
@@ -95,6 +95,7 @@ class WPCF7r_Survey {
 			'wpcf7r-salesforce',
 			'wpcf7r-stripe',
 			'wpcf7r-twilio',
+			'wpcf7r-firescript',
 		);
 
 		$plugins = get_plugins();

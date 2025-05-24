@@ -155,6 +155,20 @@ class WPCF7R_Post_Types {
 
 		register_post_type( 'wpcf7r_action', $args );
 		add_post_type_support( 'wpcf7r_action', 'custom-fields' );
+
+		if ( CF7_REDIRECT_DEBUG ) {
+			add_action(
+				'admin_enqueue_scripts',
+				function () {
+					$screen = get_current_screen();
+					if ( 'edit-wpcf7r_action' !== $screen->id ) {
+						return;
+					}
+
+					do_action( 'themeisle_internal_page', WPCF7_BASENAME, 'actions' );
+				}
+			);
+		}
 	}
 
 	/**

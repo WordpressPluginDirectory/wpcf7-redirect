@@ -31,6 +31,10 @@ const App = () => {
 		) {
 			setTabSlug( hashValue );
 		}
+
+		if ( window.tsdk_reposition_notice ) {
+			window.tsdk_reposition_notice();
+		}
 	}, [] );
 
 	// Update hash when tab changes
@@ -105,7 +109,8 @@ const App = () => {
 							)
 					) }
 				</div>
-
+				
+				<div id="tsdk_banner"></div>
 				<div className="rcf7-dashboard__tab-content">
 					{ tabSlug === 'settings' && <SettingsTab /> }
 					{ tabSlug === 'licenses' && <LicensesTab /> }

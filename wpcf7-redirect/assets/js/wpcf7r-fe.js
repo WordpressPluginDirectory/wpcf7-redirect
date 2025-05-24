@@ -138,12 +138,23 @@ var wpcf7_redirect;
         this.handle_api_action = function (send_to_api_result) {
 
             $.each(send_to_api_result, function (k, v) {
-                window.rcf7_response = JSON.parse( v.api_response );
-                
-                if (!v.result_javascript) {
-                    return;
+                try {
+                    if ( !v.result_javascript || typeof v.result_javascript !== 'string' ) {
+                        return;
+                    }
+
+                    if (
+                        v.api_response &&
+                        typeof v.api_response === 'string'
+                        && v.api_response.trim() !== ''
+                    ) {
+                        window.rcf7_response = JSON.parse(v.api_response);
+                    }
+
+                    eval(v.result_javascript);
+                } catch (e) {
+                    console.error("Error handling API action:", e);
                 }
-                eval(v.result_javascript);
             });
         };
 

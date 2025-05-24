@@ -46,6 +46,7 @@ class Wpcf7_Redirect {
 
 		add_filter( 'redirection_for_contact_form_7_float_widget_metadata', array( $this, 'float_widget_data' ) );
 		add_filter( 'wpcf7_redirect_float_widget_metadata', array( $this, 'float_widget_data' ) );
+		add_filter( 'themeisle_sdk_blackfriday_data', array( $this, 'add_black_friday_data' ) );
 
 		$dashboard = new \WPCF7R_Dashboard();
 		$dashboard->register_endpoints();
@@ -251,5 +252,71 @@ class Wpcf7_Redirect {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Set the black friday data.
+	 *
+	 * @param array $configs The configuration array for the loaded products.
+	 * @return array
+	 */
+	public function add_black_friday_data( $configs ) {
+		$config = $configs['default'];
+
+		// translators: %1$s - HTML tag, %2$s - discount, %3$s - HTML tag, %4$s - product name.
+		$message_template = __( 'Our biggest sale of the year: %1$sup to %2$s OFF%3$s on %4$s. Don\'t miss this limited-time offer.', 'wpcf7-redirect' );
+		$product_label    = 'Redirection for Contact Form 7';
+		$discount         = '70%';
+
+		$addons = array(
+			'wpcf7r-api',
+			'wpcf7r-conditional-logic',
+			'wpcf7r-create-post',
+			'wpcf7r-hubspot',
+			'wpcf7r-mailchimp',
+			'wpcf7r-paypal',
+			'wpcf7r-pdf',
+			'wpcf7r-popup',
+			'wpcf7r-salesforce',
+			'wpcf7r-stripe',
+			'wpcf7r-twilio',
+			'wpcf7r-firescript',
+		);
+
+		$is_pro      = false;
+		$max_plan    = 0;
+		$license_key = false;
+
+		foreach ( $addons as $addon_slug ) {
+			$plan = intval( apply_filters( 'product_' . $addon_slug . '_license_plan', 0 ) );
+			if ( $plan > $max_plan ) {
+				$is_pro      = true;
+				$max_plan    = $plan;
+				$license_key = apply_filters( 'product_' . $addon_slug . '_license_key', false );
+			}
+		}
+
+		if ( $is_pro ) {
+			// translators: %1$s - HTML tag, %2$s - discount, %3$s - HTML tag, %4$s - product name.
+			$message_template = __( 'Get %1$sup to %2$s off%3$s when you upgrade your %4$s plan or renew early.', 'wpcf7-redirect' );
+			$product_label    = 'Redirection for Contact Form 7 Pro';
+			$discount         = '30%';
+		}
+
+		$product_label = sprintf( '<strong>%s</strong>', $product_label );
+		$url_params    = array(
+			'utm_term' => $is_pro ? 'plan-' . $max_plan : 'free',
+			'lkey'     => $license_key,
+		);
+
+		$config['message']  = sprintf( $message_template, '<strong>', $discount, '</strong>', $product_label );
+		$config['sale_url'] = add_query_arg(
+			$url_params,
+			tsdk_translate_link( tsdk_utmify( 'https://themeisle.link/wpcf7-bf', 'bfcm', 'wpcf7r' ) )
+		);
+
+		$configs[ WPCF7_BASENAME ] = $config;
+
+		return $configs;
 	}
 }
