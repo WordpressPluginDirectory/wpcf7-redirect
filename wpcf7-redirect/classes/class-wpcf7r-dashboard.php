@@ -605,7 +605,16 @@ class WPCF7R_Dashboard {
 			foreach ( $forms as $form ) {
 				$entries[] = array(
 					'label' => $form->post_title,
-					'link'  => admin_url( 'admin.php?page=wpcf7&post=' . $form->ID . '&action=edit&wpcf7r-tab=true' ),
+					'link'  => add_query_arg(
+						array(
+							'page'                    => 'wpcf7',
+							'post'                    => $form->ID,
+							'action'                  => 'edit',
+							'wpcf7r-tab'              => 'true',
+							'wpcf7r-action-menu-open' => 'true',
+						),
+						admin_url( 'admin.php' )
+					),
 				);
 			}
 		}

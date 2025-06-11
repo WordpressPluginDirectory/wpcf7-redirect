@@ -51,4 +51,15 @@ if ( $is_upsell ) {
 			</div>
 		</div>
 	</div>
+	<?php if ( $is_upsell ) : ?>
+	<div class="rcf7-conditional-upsell__banner">
+		<a
+			href="<?php echo esc_url( tsdk_utmify( wpcf7_redirect_upgrade_url(), 'action-conditions' ) ); ?>"
+			class="button button-primary"
+			target="_blank"
+		>
+			<?php esc_html_e( 'Upgrade to Pro', 'wpcf7-redirect' ); ?>
+		</a>
+	</div>
+	<?php endif; ?>
 </div>

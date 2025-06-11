@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  Redirection for Contact Form 7
  * Description:  The ultimate add-on for Contact Form 7 - redirect to any page after submission, fire scripts, save submissions in database, and much more options to make Contact Form 7 powerful than ever.
- * Version:      3.2.2
+ * Version:      3.2.3
  * Author:       Themeisle
  * Author URI:   http://themeisle.com
  * License:      GPLv3 or later
@@ -28,7 +28,7 @@ if ( ! defined( 'CF7_REDIRECT_DEBUG' ) ) {
 	define( 'CF7_REDIRECT_DEBUG', get_option( 'wpcf_debug' ) ? true : false );
 }
 
-define( 'WPCF7_PRO_REDIRECT_PLUGIN_VERSION', '3.2.2' );
+define( 'WPCF7_PRO_REDIRECT_PLUGIN_VERSION', '3.2.3' );
 define( 'WPCF7_PRO_MIGRATION_VERSION', '1' );
 define( 'WPCF7_PRO_REDIRECT_CLASSES_PATH', plugin_dir_path( __FILE__ ) . 'classes/' );
 define( 'WPCF7_PRO_REDIRECT_PATH', plugin_dir_path( __FILE__ ) );
@@ -63,13 +63,13 @@ function wpcf7r_activation_process() {
 	}
 }
 
-require_once plugin_dir_path( __FILE__ ) . 'wpcf7r-functions.php';
-
 /**
- * Enable license processing for all the sub-plugins. Backward compatible.
+ * Get the namespace for each plugin along with its basename.
+ *
+ * @return array<string, string> The namespace map.
  */
-function wpcf7_enable_license_processing() {
-	$extensions_map = array(
+function wpcf7_get_plugins_namespace() {
+	return array(
 		'WPCF7R_API_BASENAME'               => 'wpcf7r-api',
 		'WPCF7R_PDF_BASENAME'               => 'wpcf7r-pdf',
 		'WPCF7R_POPUP_BASENAME'             => 'wpcf7r-popup',
@@ -83,8 +83,17 @@ function wpcf7_enable_license_processing() {
 		'WPCF7R_CREATE_POST_BASENAME'       => 'wpcf7r-create-post',
 		'WPCF7R_FIRE_SCRIPT_BASENAME'       => 'wpcf7r-firescript',
 	);
+}
 
-	foreach ( $extensions_map as $constant => $namespace ) {
+require_once plugin_dir_path( __FILE__ ) . 'wpcf7r-functions.php';
+
+/**
+ * Enable license processing for all the sub-plugins. Backward compatible.
+ *
+ * @return void
+ */
+function wpcf7_enable_license_processing() {
+	foreach ( wpcf7_get_plugins_namespace() as $constant => $namespace ) {
 		if ( ! defined( $constant ) ) {
 			continue;
 		}
@@ -206,6 +215,19 @@ function wpcf7_redirect_pro_init() {
 		}
 	);
 
+	add_filter(
+		'wpcf7_redirect_about_us_metadata',
+		function () {
+			return array(
+				'logo'             => esc_url_raw( WPCF7_PRO_REDIRECT_BASE_URL . 'assets/images/logo.svg' ),
+				'location'         => 'wpcf7r-dashboard',
+				'has_upgrade_menu' => ! wpcf7_has_pro(),
+				'upgrade_text'     => esc_html__( 'Upgrade to Pro', 'wpcf7-redirect' ),
+				'upgrade_link'     => tsdk_utmify( wpcf7_redirect_upgrade_url(), 'aboutUsPage' ),
+			);
+		}
+	);
+
 	add_action( 'init', 'wpcf7_enable_license_processing', 0 );
 
 	register_activation_hook(
@@ -231,8 +253,7 @@ wpcf7_redirect_pro_init();
  * @return list<string> The modified list of action links.
  */
 function wpcf7_action_links( $links ) {
-	$active_pro_plugins = wpcf7_get_active_pro_plugins();
-	if ( ! empty( $active_pro_plugins ) ) {
+	if ( ! wpcf7_has_pro() ) {
 		return $links;
 	}
 

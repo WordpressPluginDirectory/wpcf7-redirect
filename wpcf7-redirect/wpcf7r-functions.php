@@ -220,17 +220,23 @@ function wpcf7_get_pro_plugin_slugs() {
 }
 
 /**
- * Get active pro plugin slugs based on license status.
+ * Check if at least one Pro product is active.
  *
- * @return string[] Slugs of active pro plugins.
+ * @return boolean True if at least one Pro product is active.
  */
-function wpcf7_get_active_pro_plugins() {
-	return array_filter(
-		wpcf7_get_pro_plugin_slugs(),
-		function ( $slug ) {
-			return 'valid' === apply_filters( $slug . '_license_status', false );
+function wpcf7_has_pro() {
+	$basename_list = array_keys( wpcf7_get_plugins_namespace() );
+
+	foreach ( $basename_list as $basename ) {
+		if (
+			defined( $basename ) &&
+			'valid' === wpcf7r_get_license_status( constant( $basename ) )
+		) {
+			return true;
 		}
-	);
+	}
+
+	return false;
 }
 
 /**

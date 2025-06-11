@@ -1598,6 +1598,18 @@ let wpcf7_redirect_admin;
 			
 			positionDropdown();
 		});
+		
+		if (window.location.href.indexOf('wpcf7r-action-menu-open=true') !== -1) {
+			setTimeout(() => {
+				addActionBtn.click();
+				
+				// Remove the parameter from URL.
+				const url = new URL(window.location.href);
+				url.searchParams.delete('wpcf7r-action-menu-open');
+				window.history.replaceState({}, '', url);
+			}, 100);
+		}
+		
 	}
 
 	$(document).ready(function () {
