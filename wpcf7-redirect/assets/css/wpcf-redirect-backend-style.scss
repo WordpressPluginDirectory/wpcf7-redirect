@@ -11,7 +11,7 @@
 
     &#setting-error-not-valid-serial {
         display: block !important;
-    } 
+    }
 }
 
 #debug-info {
@@ -1699,7 +1699,7 @@ $toggleGap: 4px;
             }
         }
     }
-  
+
     &__switch {
         position: relative;
         display: inline-block;
@@ -1722,7 +1722,7 @@ $toggleGap: 4px;
         }
     }
 }
-  
+
 .field-wrap-action_status {
     display: none;
 }
@@ -1809,12 +1809,12 @@ $toggleGap: 4px;
             color: black;
             flex-grow: 1;
         }
-    
+
         padding: 10px 16px;
         cursor: pointer;
         font-size: 16px;
         color: #333;
-    
+
         &:hover {
             background-color: #f5f5f5;
         }
@@ -1852,7 +1852,7 @@ $toggleGap: 4px;
             .add-condition {
                 visibility: hidden;
             }
-        
+
             &:last-child {
                 .add-condition {
                     visibility: visible;
@@ -1942,6 +1942,10 @@ $toggleGap: 4px;
     padding: 0.5rem;
     background-color: #f2f2f2;
     border-radius: 4px;
+}
+
+.rcf7-hidden-element {
+    display: none;
 }
 
 @-webkit-keyframes rp_spin {

@@ -44,7 +44,7 @@ $addons_url = esc_url( admin_url( 'admin.php?page=wpcf7r-dashboard#addons' ) );
 	?>
 </legend>
 
-<div style="display: none;">
+<div class="rcf7-hidden-element">
 	<?php
 	/**
 	 * Load the an empty TinyMCE editor so that WordPress can correctly load the dependencies.

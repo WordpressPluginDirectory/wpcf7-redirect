@@ -160,7 +160,7 @@ class WPCF7r_Survey {
 	 * @return int Number of days since installation.
 	 */
 	public function get_install_time() {
-		return intval( ( time() - get_option( 'redirection_for_contact_form_7_install', time() ) ) / DAY_IN_SECONDS );
+		return intval( ( time() - get_option( 'wpcf7_redirect_install', time() ) ) / DAY_IN_SECONDS );
 	}
 
 	/**
