@@ -262,8 +262,30 @@ class WPCF7R_Post_Types {
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$settings_meta = $_POST['wpcf7-redirect'];
+
+		$save_file_helper = new WPCF7R_Save_File();
+		$save_file_helper->init_uploads_dir();
 		foreach ( $settings_meta as $meta_key => $meta_value ) {
 			$meta_key = sanitize_key( $meta_key );
+
+			// Move the file to the upload directory.
+			if ( 'files' === $meta_key ) {
+				$files = array();
+				foreach ( $meta_value as $file ) {
+					if ( empty( $file ) || empty( $file['path'] ) ) {
+						continue;
+					}
+
+					$uploaded_file = $save_file_helper->move_file_to_upload( $file['path'] );
+
+					if ( $uploaded_file ) {
+						$files = array(
+							'path' => $uploaded_file,
+						);
+					}
+				}
+				$meta_value = $files;
+			}
 			update_post_meta( $post_id, $meta_key, $meta_value );
 		}
 	}

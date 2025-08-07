@@ -99,14 +99,13 @@ class WPCF7R_Save_File {
 				continue;
 			}
 
-			// Verify the file is within our uploads directory for security before deleting.
-			$normalized_path = wp_normalize_path( $file_data['path'] );
+			$file_name = sanitize_file_name( basename( $file_data['path'] ) );
+			$file_path = path_join( $normalized_uploads, $file_name );
 
 			if (
-				0 === strpos( $normalized_path, $normalized_uploads ) &&
-				$wp_filesystem->exists( $normalized_path )
+				$wp_filesystem->exists( $file_path )
 			) {
-				$wp_filesystem->delete( $normalized_path );
+				$wp_filesystem->delete( $file_path );
 			}
 		}
 	}

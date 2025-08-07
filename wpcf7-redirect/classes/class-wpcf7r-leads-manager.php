@@ -261,7 +261,7 @@ class WPCF7R_Leads_Manager {
 					'action ' !== substr( $custom_field_key, 0, 7 ) &&
 					'files' !== $custom_field_key // Do not export files as CSV.
 				) {
-					$field_value = maybe_unserialize( reset( $custom_field_value ) );
+					$field_value = wpcf7r_safe_unserialize( reset( $custom_field_value ) );
 
 					if ( is_array( $field_value ) ) {
 						$entry_data[ $custom_field_key ] = implode( ',', $field_value );

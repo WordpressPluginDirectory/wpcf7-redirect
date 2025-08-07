@@ -156,9 +156,9 @@ class WPCF7R_Lead {
 				if ( 'lead_id' === $field_key ) {
 					continue;
 				} elseif ( isset( $custom_meta_fields[ $field_key ] ) ) {
-						$value = maybe_unserialize( $custom_meta_fields[ $field_key ][0] );
+						$value = wpcf7r_safe_unserialize( $custom_meta_fields[ $field_key ][0] );
 				} elseif ( isset( $custom_meta_fields['files'] ) && $custom_meta_fields['files'] ) {
-					$value = maybe_unserialize( $custom_meta_fields['files'][0] );
+					$value = wpcf7r_safe_unserialize( $custom_meta_fields['files'][0] );
 					$value = isset( $value[ $field_key ] ) && $value[ $field_key ] ? $value[ $field_key ] : '';
 				}
 
@@ -181,7 +181,7 @@ class WPCF7R_Lead {
 								'placeholder' => '',
 								'label'       => isset( $field_value['tag'] ) && $field_value['tag'] ? $field_value['tag'] : $field_key,
 								'name'        => $field_key,
-								'value'       => maybe_unserialize( $value_field_value ),
+								'value'       => wpcf7r_safe_unserialize( $value_field_value ),
 								'prefix'      => '',
 							);
 						}
@@ -199,7 +199,7 @@ class WPCF7R_Lead {
 			}
 		} else {
 			foreach ( $custom_meta_fields as $field_key => $field_value ) {
-				$value = maybe_unserialize( $field_value[0] );
+				$value = wpcf7r_safe_unserialize( $field_value[0] );
 				if ( is_array( $value ) ) {
 					foreach ( $value as $value_field_key => $value_field_value ) {
 						$lead_fields[ $field_key . '-' . $value_field_key ] = array(
@@ -207,7 +207,7 @@ class WPCF7R_Lead {
 							'placeholder' => '',
 							'label'       => $field_key,
 							'name'        => $field_key,
-							'value'       => maybe_unserialize( $value_field_value ),
+							'value'       => wpcf7r_safe_unserialize( $value_field_value ),
 							'prefix'      => '',
 						);
 					}
